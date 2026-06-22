@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Facturation ZMTRANS </title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <section class="auth-screen" id="authScreen">
+      <form class="auth-card" id="loginForm">
+        <div class="brand auth-brand">
+          <span class="brand-mark">F</span>
+          <div>
+            <h1>Facturation ZMTRANS</h1>
+            <p>Connexion securisee</p>
+          </div>
+        </div>
+        <label>
+          <span>Email</span>
+          <input id="loginEmailInput" type="email" autocomplete="email" required>
+        </label>
+        <label>
+          <span>Mot de passe</span>
+          <input id="loginPasswordInput" type="password" autocomplete="current-password" required>
+        </label>
+        <p class="auth-error" id="authError"></p>
+        <button class="primary-action" type="submit">Se connecter</button>
+      </form>
+    </section>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Factures">
+        <div class="brand">
+          <span class="brand-mark">F</span>
+          <div>
+            <h1>Facturation ZMTRANS</h1>
+            <p>Gestion des factures</p>
+          </div>
+        </div>
+
+        <div class="user-box">
+          <span id="currentUserText">Non connecte</span>
+          <button id="logoutBtn" type="button">Deconnexion</button>
+        </div>
+
+        <button class="primary-action" id="newInvoiceBtn" type="button">Nouvelle facture</button>
+
+        <label class="search-box">
+          <span>Rechercher</span>
+          <input id="searchInput" type="search" placeholder="Client, numero, statut">
+        </label>
+
+        <div class="invoice-list" id="invoiceList" aria-live="polite"></div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Edition</p>
+            <h2 id="pageTitle">Facture</h2>
+          </div>
+          <div class="toolbar">
+            <button id="duplicateBtn" type="button">Dupliquer</button>
+            <button id="deleteBtn" class="danger" type="button">Supprimer</button>
+            <button id="printBtn" type="button">Imprimer</button>
+          </div>
+        </header>
+
+        <section class="dashboard" aria-label="Tableau de bord">
+          <div class="dashboard-head">
+            <div>
+              <p class="eyebrow">Pilotage</p>
+              <h3>Tableau de bord</h3>
+            </div>
+            <span id="dashboardCount">0 facture</span>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span>Chiffre d'affaires</span>
+              <strong id="revenueMetric">0 XOF</strong>
+            </article>
+            <article class="metric-card">
+              <span>Payé</span>
+              <strong id="paidMetric">0 XOF</strong>
+            </article>
+            <article class="metric-card">
+              <span>À encaisser</span>
+              <strong id="pendingMetric">0 XOF</strong>
+            </article>
+            <article class="metric-card">
+              <span>En retard</span>
+              <strong id="lateMetric">0 XOF</strong>
+            </article>
+          </div>
+
+          <div class="dashboard-table-wrap">
+            <table class="dashboard-table">
+              <thead>
+                <tr>
+                  <th>Numero</th>
+                  <th>Client</th>
+                  <th>Statut</th>
+                  <th>Date</th>
+                  <th>Total</th>
+                  <th>Solde</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel admin-panel" id="adminPanel" hidden>
+          <div class="panel-title">
+            <h3>Utilisateurs</h3>
+          </div>
+          <form class="user-form" id="userForm">
+            <input id="editingUserIdInput" type="hidden">
+            <input id="newUserNameInput" placeholder="Nom utilisateur" required>
+            <input id="newUserEmailInput" type="email" placeholder="Email" required>
+            <input id="newUserPasswordInput" type="password" placeholder="Mot de passe">
+            <select id="newUserRoleInput" aria-label="Role">
+              <option value="user">Utilisateur</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button id="saveUserBtn" type="submit">Ajouter</button>
+            <button id="cancelUserEditBtn" type="button" hidden>Annuler</button>
+          </form>
+          <div class="users-list" id="usersList"></div>
+          <div class="user-history" id="userHistory" hidden>
+            <div class="panel-title">
+              <h3 id="userHistoryTitle">Historique</h3>
+              <span id="userHistoryTotal">0 XOF</span>
+            </div>
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Numero</th>
+                    <th>Client</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Solde</th>
+                  </tr>
+                </thead>
+                <tbody id="userHistoryBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="editor-grid">
+          <form class="invoice-form" id="invoiceForm">
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Informations</h3>
+                <select id="statusInput" name="status" aria-label="Statut">
+                  <option value="Brouillon">Brouillon</option>
+                  <option value="Envoyee">Envoyee</option>
+                  <option value="Payee">Payee</option>
+                  <option value="En retard">En retard</option>
+                </select>
+              </div>
+
+              <div class="field-grid two">
+                <label>
+                  <span>Type</span>
+                  <select id="documentTypeInput" name="documentType">
+                    <option value="FACTURE">FACTURE</option>
+                    <option value="DEVIS">DEVIS</option>
+                    <option value="FACTURE PRO FORMA">FACTURE PRO FORMA</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Numero</span>
+                  <input id="numberInput" name="number" required>
+                </label>
+                <label>
+                  <span>Date</span>
+                  <input id="dateInput" name="date" type="date" required>
+                </label>
+                <label>
+                  <span>Echeance</span>
+                  <input id="dueDateInput" name="dueDate" type="date" required>
+                </label>
+                <label>
+                  <span>Date de livraison</span>
+                  <input id="deliveryDateInput" name="deliveryDate" type="date">
+                </label>
+                <label class="wide">
+                  <span>Mode de paiement</span>
+                  <input id="paymentMethodInput" name="paymentMethod" placeholder="Especes, cheque ou virement">
+                </label>
+                <label>
+                  <span>Devise</span>
+                  <select id="currencyInput" name="currency">
+                    <option value="XOF">XOF</option>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Entreprise</h3>
+              </div>
+              <div class="field-grid two">
+                <label>
+                  <span>Nom</span>
+                  <input id="companyNameInput" name="companyName">
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input id="companyEmailInput" name="companyEmail" type="email">
+                </label>
+                <label>
+                  <span>Telephone</span>
+                  <input id="companyPhoneInput" name="companyPhone">
+                </label>
+                <label>
+                  <span>NINEA</span>
+                  <input id="companyNineaInput" name="companyNinea">
+                </label>
+                <label>
+                  <span>RC</span>
+                  <input id="companyRcInput" name="companyRc">
+                </label>
+                <label>
+                  <span>TVA</span>
+                  <input id="companyTaxIdInput" name="companyTaxId">
+                </label>
+                <label class="wide">
+                  <span>Adresse</span>
+                  <textarea id="companyAddressInput" name="companyAddress" rows="3"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Client</h3>
+              </div>
+              <div class="field-grid two">
+                <label>
+                  <span>Nom</span>
+                  <input id="clientNameInput" name="clientName" required>
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input id="clientEmailInput" name="clientEmail" type="email">
+                </label>
+                <label>
+                  <span>Telephone</span>
+                  <input id="clientPhoneInput" name="clientPhone">
+                </label>
+                <label class="wide">
+                  <span>Adresse</span>
+                  <textarea id="clientAddressInput" name="clientAddress" rows="3"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Objet</h3>
+              </div>
+              <div class="field-grid two">
+                <label class="wide">
+                  <span>Objet de la facture</span>
+                  <input id="subjectInput" name="subject" placeholder="LOCATION BENNE SEMI REMORQUE A KEDOUGOU">
+                </label>
+                <label class="wide">
+                  <span>Details</span>
+                  <textarea id="workDetailsInput" name="workDetails" rows="3" placeholder="La distance 40km/jr&#10;Les heures de travail c'est de 8h a 17h30"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Prestations</h3>
+                <button id="addItemBtn" type="button">Ajouter une ligne</button>
+              </div>
+              <div class="items-table" id="itemsTable"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Parametres</h3>
+              </div>
+              <div class="field-grid three">
+                <label>
+                  <span>TVA (%)</span>
+                  <input id="taxRateInput" name="taxRate" type="number" min="0" step="0.01">
+                </label>
+                <label>
+                  <span>Remise (%)</span>
+                  <input id="discountRateInput" name="discountRate" type="number" min="0" step="0.01">
+                </label>
+                <label>
+                  <span>Acompte</span>
+                  <input id="paidInput" name="paid" type="number" min="0" step="1">
+                </label>
+                <label class="wide">
+                  <span>Condition de paiement</span>
+                  <input id="paymentTermsInput" name="paymentTerms" placeholder="Des reception de la facture">
+                </label>
+                <label class="wide">
+                  <span>Notes</span>
+                  <textarea id="notesInput" name="notes" rows="4"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Informations bancaires</h3>
+              </div>
+              <div class="field-grid two">
+                <label>
+                  <span>Titulaire</span>
+                  <input id="bankHolderInput" name="bankHolder">
+                </label>
+                <label>
+                  <span>Banque</span>
+                  <input id="bankNameInput" name="bankName">
+                </label>
+                <label>
+                  <span>Routing Number</span>
+                  <input id="routingNumberInput" name="routingNumber">
+                </label>
+                <label>
+                  <span>N de compte</span>
+                  <input id="accountNumberInput" name="accountNumber">
+                </label>
+                <label>
+                  <span>IBAN</span>
+                  <input id="ibanInput" name="iban">
+                </label>
+                <label>
+                  <span>BIC</span>
+                  <input id="bicInput" name="bic">
+                </label>
+              </div>
+            </section>
+          </form>
+
+          <aside class="preview-column" aria-label="Apercu de facture">
+            <section class="summary-strip">
+              <div>
+                <span>Total</span>
+                <strong id="totalDueText">0 XOF</strong>
+              </div>
+              <div>
+                <span>Solde</span>
+                <strong id="balanceText">0 XOF</strong>
+              </div>
+            </section>
+
+            <article class="invoice-preview" id="invoicePreview"></article>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <template id="itemRowTemplate">
+      <div class="item-row">
+        <label class="description">
+          <span>Description</span>
+          <input data-field="description" placeholder="Service ou produit">
+        </label>
+        <label>
+          <span>Nombre de jour</span>
+          <input data-field="quantity" type="number" min="0" step="0.01">
+        </label>
+        <label>
+          <span>Prix</span>
+          <input data-field="price" type="number" min="0" step="1">
+        </label>
+        <strong class="line-total">0</strong>
+        <button data-action="remove" class="icon-button" type="button" aria-label="Supprimer la ligne">X</button>
+      </div>
+    </template>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
