@@ -81,6 +81,8 @@ const els = {
   revenueMetric: document.querySelector("#revenueMetric"),
   routingNumber: document.querySelector("#routingNumberInput"),
   search: document.querySelector("#searchInput"),
+  sortBy: document.querySelector("#sortByInput"),
+  sortDirection: document.querySelector("#sortDirectionInput"),
   status: document.querySelector("#statusInput"),
   subject: document.querySelector("#subjectInput"),
   taxRate: document.querySelector("#taxRateInput"),
@@ -467,14 +469,57 @@ function updateRowTotal(row) {
   row.querySelector(".line-total").textContent = money(quantity * price, els.currency.value);
 }
 
+function invoiceNumberValue(invoice) {
+  const number = String(invoice.number || "").match(/\d+/g)?.join("") || "0";
+  return Number(number);
+}
+
+function nextInvoiceNumber() {
+  const highestNumber = invoices.reduce((max, invoice) => {
+    return Math.max(max, invoiceNumberValue(invoice));
+  }, 0);
+  return String(highestNumber + 1).padStart(3, "0");
+}
+
+function sortedInvoices(source = invoices) {
+  const sortBy = els.sortBy?.value || "number";
+  const direction = els.sortDirection?.value === "asc" ? 1 : -1;
+  const statusRank = {
+    "En retard": 4,
+    Envoyee: 3,
+    Brouillon: 2,
+    Payee: 1
+  };
+
+  return [...source].sort((a, b) => {
+    let result = 0;
+    if (sortBy === "number") {
+      result = invoiceNumberValue(a) - invoiceNumberValue(b);
+    } else if (sortBy === "date") {
+      result = new Date(a.date || 0) - new Date(b.date || 0);
+    } else if (sortBy === "status") {
+      result = (statusRank[a.status] || 0) - (statusRank[b.status] || 0);
+    } else if (sortBy === "client") {
+      result = String(a.clientName || "").localeCompare(String(b.clientName || ""), "fr");
+    } else if (sortBy === "amount") {
+      result = calculate(a).total - calculate(b).total;
+    }
+
+    if (result === 0) {
+      result = invoiceNumberValue(a) - invoiceNumberValue(b);
+    }
+    return result * direction;
+  });
+}
+
 function renderList() {
   const query = els.search.value.trim().toLowerCase();
-  const visibleInvoices = invoices.filter((invoice) => {
+  const visibleInvoices = sortedInvoices(invoices.filter((invoice) => {
     return [invoice.number, invoice.clientName, invoice.status, invoice.documentType]
       .join(" ")
       .toLowerCase()
       .includes(query);
-  });
+  }));
 
   els.invoiceList.innerHTML = visibleInvoices.length
     ? ""
@@ -486,10 +531,11 @@ function renderList() {
     card.className = `invoice-card${invoice.id === selectedId ? " active" : ""}`;
     card.type = "button";
     card.innerHTML = `
+      <span class="invoice-number-pill">${escapeHtml(invoice.documentType)} ${escapeHtml(invoice.number)}</span>
       <span class="status ${statusClass(invoice.status)}">${escapeHtml(invoice.documentType)} - ${escapeHtml(invoice.status)}</span>
       <strong>${escapeHtml(invoice.clientName || "Client sans nom")}</strong>
       <span class="invoice-meta">
-        <span>${escapeHtml(invoice.number)}</span>
+        <span>${escapeHtml(formatDate(invoice.date))}</span>
         <span>${money(totals.total, invoice.currency)}</span>
       </span>
     `;
@@ -536,7 +582,7 @@ function renderDashboard() {
   els.lateMetric.textContent = money(stats.late, currency);
 
   els.dashboardTableBody.innerHTML = "";
-  invoices.forEach((invoice) => {
+  sortedInvoices().forEach((invoice) => {
     const totals = calculate(invoice);
     const effectiveBalance = invoice.status === "Payee" ? 0 : totals.balance;
     const row = document.createElement("tr");
@@ -869,6 +915,14 @@ function render() {
 els.form.addEventListener("input", readForm);
 els.form.addEventListener("change", readForm);
 els.search.addEventListener("input", renderList);
+els.sortBy.addEventListener("change", () => {
+  renderList();
+  renderDashboard();
+});
+els.sortDirection.addEventListener("change", () => {
+  renderList();
+  renderDashboard();
+});
 
 els.addItemBtn.addEventListener("click", () => {
   addItemRow();
@@ -877,7 +931,7 @@ els.addItemBtn.addEventListener("click", () => {
 
 els.newInvoiceBtn.addEventListener("click", () => {
   const invoice = defaultInvoice({
-    number: String(invoices.length + 1).padStart(3, "0"),
+    number: nextInvoiceNumber(),
     date: today(),
     dueDate: today(14),
     deliveryDate: today()

@@ -51,6 +51,26 @@
           <input id="searchInput" type="search" placeholder="Client, numero, statut">
         </label>
 
+        <div class="sort-panel" aria-label="Tri des factures">
+          <label>
+            <span>Trier par</span>
+            <select id="sortByInput">
+              <option value="number">Numero</option>
+              <option value="date">Date</option>
+              <option value="status">Statut</option>
+              <option value="client">Client</option>
+              <option value="amount">Montant</option>
+            </select>
+          </label>
+          <label>
+            <span>Ordre</span>
+            <select id="sortDirectionInput">
+              <option value="desc">Decroissant</option>
+              <option value="asc">Croissant</option>
+            </select>
+          </label>
+        </div>
+
         <div class="invoice-list" id="invoiceList" aria-live="polite"></div>
       </aside>
 
@@ -66,51 +86,6 @@
             <button id="printBtn" type="button">Imprimer</button>
           </div>
         </header>
-
-        <section class="dashboard" aria-label="Tableau de bord">
-          <div class="dashboard-head">
-            <div>
-              <p class="eyebrow">Pilotage</p>
-              <h3>Tableau de bord</h3>
-            </div>
-            <span id="dashboardCount">0 facture</span>
-          </div>
-
-          <div class="metric-grid">
-            <article class="metric-card">
-              <span>Chiffre d'affaires</span>
-              <strong id="revenueMetric">0 XOF</strong>
-            </article>
-            <article class="metric-card">
-              <span>Payé</span>
-              <strong id="paidMetric">0 XOF</strong>
-            </article>
-            <article class="metric-card">
-              <span>À encaisser</span>
-              <strong id="pendingMetric">0 XOF</strong>
-            </article>
-            <article class="metric-card">
-              <span>En retard</span>
-              <strong id="lateMetric">0 XOF</strong>
-            </article>
-          </div>
-
-          <div class="dashboard-table-wrap">
-            <table class="dashboard-table">
-              <thead>
-                <tr>
-                  <th>Numero</th>
-                  <th>Client</th>
-                  <th>Statut</th>
-                  <th>Date</th>
-                  <th>Total</th>
-                  <th>Solde</th>
-                </tr>
-              </thead>
-              <tbody id="dashboardTableBody"></tbody>
-            </table>
-          </div>
-        </section>
 
         <section class="panel admin-panel" id="adminPanel" hidden>
           <div class="panel-title">
@@ -364,6 +339,51 @@
 
             <article class="invoice-preview" id="invoicePreview"></article>
           </aside>
+        </section>
+
+        <section class="dashboard" aria-label="Tableau de bord">
+          <div class="dashboard-head">
+            <div>
+              <p class="eyebrow">Pilotage</p>
+              <h3>Tableau de bord</h3>
+            </div>
+            <span id="dashboardCount">0 facture</span>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span>Chiffre d'affaires</span>
+              <strong id="revenueMetric">0 XOF</strong>
+            </article>
+            <article class="metric-card">
+              <span>Payé</span>
+              <strong id="paidMetric">0 XOF</strong>
+            </article>
+            <article class="metric-card">
+              <span>À encaisser</span>
+              <strong id="pendingMetric">0 XOF</strong>
+            </article>
+            <article class="metric-card">
+              <span>En retard</span>
+              <strong id="lateMetric">0 XOF</strong>
+            </article>
+          </div>
+
+          <div class="dashboard-table-wrap">
+            <table class="dashboard-table">
+              <thead>
+                <tr>
+                  <th>Numero</th>
+                  <th>Client</th>
+                  <th>Statut</th>
+                  <th>Date</th>
+                  <th>Total</th>
+                  <th>Solde</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardTableBody"></tbody>
+            </table>
+          </div>
         </section>
       </main>
     </div>
