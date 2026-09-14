@@ -1,4 +1,6 @@
 const STORAGE_KEY = "facturation.invoices.v3";
+const CLIENTS_STORAGE_KEY = "facturation.clients.v1";
+const DELETED_CLIENTS_STORAGE_KEY = "facturation.deletedClients.v1";
 const LOGO_SRC = "assets/logo-zm-trans.png";
 const SIGNATURE_SRC = "assets/signature-zm-trans.jpg";
 const TOKEN_KEY = "facturation.authToken.v1";
@@ -29,11 +31,21 @@ const els = {
   balanceText: document.querySelector("#balanceText"),
   bankHolder: document.querySelector("#bankHolderInput"),
   bankName: document.querySelector("#bankNameInput"),
+  backToListBtn: document.querySelector("#backToListBtn"),
   bic: document.querySelector("#bicInput"),
+  chartPeakText: document.querySelector("#chartPeakText"),
+  cancelClientFormBtn: document.querySelector("#cancelClientFormBtn"),
   clientAddress: document.querySelector("#clientAddressInput"),
   clientEmail: document.querySelector("#clientEmailInput"),
+  clientForm: document.querySelector("#clientForm"),
   clientName: document.querySelector("#clientNameInput"),
   clientPhone: document.querySelector("#clientPhoneInput"),
+  invoiceClientSelect: document.querySelector("#invoiceClientSelect"),
+  clientSearch: document.querySelector("#clientSearchInput"),
+  clientsList: document.querySelector("#clientsList"),
+  clientsListTotal: document.querySelector("#clientsListTotal"),
+  clientsNavLink: document.querySelector("#clientsNavLink"),
+  clientsPage: document.querySelector("#clientsPage"),
   companyAddress: document.querySelector("#companyAddressInput"),
   companyEmail: document.querySelector("#companyEmailInput"),
   companyName: document.querySelector("#companyNameInput"),
@@ -41,6 +53,7 @@ const els = {
   companyPhone: document.querySelector("#companyPhoneInput"),
   companyRc: document.querySelector("#companyRcInput"),
   companyTaxId: document.querySelector("#companyTaxIdInput"),
+  creationCrumb: document.querySelector("#creationCrumb"),
   currency: document.querySelector("#currencyInput"),
   date: document.querySelector("#dateInput"),
   dashboardCount: document.querySelector("#dashboardCount"),
@@ -49,21 +62,51 @@ const els = {
   deliveryDate: document.querySelector("#deliveryDateInput"),
   discountRate: document.querySelector("#discountRateInput"),
   documentType: document.querySelector("#documentTypeInput"),
+  documentTypeFilter: document.querySelector("#documentTypeFilterInput"),
+  documentTypeLinks: document.querySelectorAll("[data-document-filter]"),
   dueDate: document.querySelector("#dueDateInput"),
+  editingClientId: document.querySelector("#editingClientIdInput"),
   duplicateBtn: document.querySelector("#duplicateBtn"),
   editingUserId: document.querySelector("#editingUserIdInput"),
   cancelUserEditBtn: document.querySelector("#cancelUserEditBtn"),
   form: document.querySelector("#invoiceForm"),
   iban: document.querySelector("#ibanInput"),
   invoiceList: document.querySelector("#invoiceList"),
+  invoiceListTotal: document.querySelector("#invoiceListTotal"),
+  invoiceModal: document.querySelector("#invoiceModal"),
+  invoiceModalBackdrop: document.querySelector("#invoiceModalBackdrop"),
+  invoiceModalPreview: document.querySelector("#invoiceModalPreview"),
+  invoiceModalTitle: document.querySelector("#invoiceModalTitle"),
   invoicePreview: document.querySelector("#invoicePreview"),
+  invoicesNavLink: document.querySelector("#invoicesNavLink"),
   itemsTable: document.querySelector("#itemsTable"),
   itemTemplate: document.querySelector("#itemRowTemplate"),
   loginEmail: document.querySelector("#loginEmailInput"),
   loginForm: document.querySelector("#loginForm"),
   loginPassword: document.querySelector("#loginPasswordInput"),
   logoutBtn: document.querySelector("#logoutBtn"),
+  modalCloseBtn: document.querySelector("#modalCloseBtn"),
+  modalDeleteBtn: document.querySelector("#modalDeleteBtn"),
+  modalEditBtn: document.querySelector("#modalEditBtn"),
+  modalPrintBtn: document.querySelector("#modalPrintBtn"),
+  modalSaveBtn: document.querySelector("#modalSaveBtn"),
   newInvoiceBtn: document.querySelector("#newInvoiceBtn"),
+  newClientApartment: document.querySelector("#newClientApartmentInput"),
+  newClientBusinessId: document.querySelector("#newClientBusinessIdInput"),
+  newClientCity: document.querySelector("#newClientCityInput"),
+  newClientContact: document.querySelector("#newClientContactInput"),
+  newClientCountry: document.querySelector("#newClientCountryInput"),
+  newClientEmail: document.querySelector("#newClientEmailInput"),
+  newClientFax: document.querySelector("#newClientFaxInput"),
+  newClientLegalId: document.querySelector("#newClientLegalIdInput"),
+  newClientMobile: document.querySelector("#newClientMobileInput"),
+  newClientName: document.querySelector("#newClientNameInput"),
+  newClientNote: document.querySelector("#newClientNoteInput"),
+  newClientPhone: document.querySelector("#newClientPhoneInput"),
+  newClientPostalCode: document.querySelector("#newClientPostalCodeInput"),
+  newClientState: document.querySelector("#newClientStateInput"),
+  newClientStreet: document.querySelector("#newClientStreetInput"),
+  newClientWebsite: document.querySelector("#newClientWebsiteInput"),
   newUserEmail: document.querySelector("#newUserEmailInput"),
   newUserName: document.querySelector("#newUserNameInput"),
   newUserPassword: document.querySelector("#newUserPasswordInput"),
@@ -73,21 +116,28 @@ const els = {
   pageTitle: document.querySelector("#pageTitle"),
   paid: document.querySelector("#paidInput"),
   paidMetric: document.querySelector("#paidMetric"),
+  periodFilter: document.querySelector("#periodFilterInput"),
   paymentMethod: document.querySelector("#paymentMethodInput"),
   paymentTerms: document.querySelector("#paymentTermsInput"),
   pendingMetric: document.querySelector("#pendingMetric"),
   printBtn: document.querySelector("#printBtn"),
   lateMetric: document.querySelector("#lateMetric"),
   revenueMetric: document.querySelector("#revenueMetric"),
+  revenueChart: document.querySelector("#revenueChart"),
   routingNumber: document.querySelector("#routingNumberInput"),
+  saveInvoiceBtn: document.querySelector("#saveInvoiceBtn"),
+  saveClientBtn: document.querySelector("#saveClientBtn"),
   search: document.querySelector("#searchInput"),
+  showClientFormBtn: document.querySelector("#showClientFormBtn"),
   sortBy: document.querySelector("#sortByInput"),
   sortDirection: document.querySelector("#sortDirectionInput"),
   status: document.querySelector("#statusInput"),
+  statusFilterButtons: document.querySelectorAll("[data-status-filter]"),
   subject: document.querySelector("#subjectInput"),
   taxRate: document.querySelector("#taxRateInput"),
   totalDueText: document.querySelector("#totalDueText"),
   currentUserText: document.querySelector("#currentUserText"),
+  overviewNavLink: document.querySelector("#overviewNavLink"),
   userForm: document.querySelector("#userForm"),
   saveUserBtn: document.querySelector("#saveUserBtn"),
   userHistory: document.querySelector("#userHistory"),
@@ -99,12 +149,18 @@ const els = {
 };
 
 let invoices = loadInvoices();
+let deletedClientKeys = loadDeletedClientKeys();
+let clients = loadClients();
 let selectedId = invoices[0]?.id || null;
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = null;
 let users = [];
 let syncTimer = null;
 let isHydrating = false;
+let isCreatingInvoice = false;
+let currentView = "invoices";
+let invoiceStatusFilter = "all";
+let welcomeTimer = null;
 
 function today(offsetDays = 0) {
   const date = new Date();
@@ -130,9 +186,13 @@ function defaultInvoice(seed = {}) {
     companyRc: "SN.DKR.2025.B.25461",
     companyTaxId: "TVA : TVA\nSN.DKR.2025.B.25461",
     clientName: "Logistiquemhk",
+    clientId: "",
     clientEmail: "",
     clientPhone: "",
     clientAddress: "",
+    clientBusinessId: "",
+    clientLegalId: "",
+    clientTaxId: "",
     subject: "LOCATION BENNE SEMI REMORQUE A KEDOUGOU",
     workDetails: "La distance 40km/jr\nLes heures de travail c'est de 8h a 17h30",
     items: [
@@ -167,6 +227,10 @@ function normalizeInvoice(invoice) {
     companyRc: invoice.companyRc || "SN.DKR.2025.B.25461",
     companyTaxId: invoice.companyTaxId || "TVA : TVA\nSN.DKR.2025.B.25461",
     clientPhone: invoice.clientPhone || "",
+    clientId: invoice.clientId || "",
+    clientBusinessId: invoice.clientBusinessId || "",
+    clientLegalId: invoice.clientLegalId || "",
+    clientTaxId: invoice.clientTaxId || "",
     subject: invoice.subject || "",
     workDetails: invoice.workDetails || "",
     paymentMethod: invoice.paymentMethod || "Espèces cheque ou virement",
@@ -180,19 +244,186 @@ function normalizeInvoice(invoice) {
   });
 }
 
+function uniqueInvoiceNumbers(source) {
+  const used = new Set();
+  let highest = source.reduce((max, invoice) => Math.max(max, invoiceNumberValue(invoice)), 0);
+
+  return source.map((invoice) => {
+    const number = String(invoice.number || "").trim();
+    if (number && !used.has(number)) {
+      used.add(number);
+      return invoice;
+    }
+
+    highest += 1;
+    const next = String(highest).padStart(3, "0");
+    used.add(next);
+    return { ...invoice, number: next };
+  });
+}
+
 function loadInvoices() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     return Array.isArray(saved) && saved.length
-      ? saved.map(normalizeInvoice)
+      ? uniqueInvoiceNumbers(saved.map(normalizeInvoice))
       : [defaultInvoice()];
   } catch {
     return [defaultInvoice()];
   }
 }
 
+function loadDeletedClientKeys() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DELETED_CLIENTS_STORAGE_KEY) || "[]");
+    return new Set(Array.isArray(saved) ? saved : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDeletedClientKeys() {
+  localStorage.setItem(DELETED_CLIENTS_STORAGE_KEY, JSON.stringify([...deletedClientKeys]));
+}
+
+function clientKey(client) {
+  return String(client.name || "").trim().toLowerCase();
+}
+
+function defaultClient(seed = {}) {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    email: "",
+    contact: "",
+    phone: "",
+    mobile: "",
+    fax: "",
+    website: "",
+    address: "",
+    country: "Senegal",
+    street: "",
+    apartment: "",
+    postalCode: "",
+    city: "",
+    state: "",
+    businessId: "",
+    legalId: "",
+    taxId: "",
+    note: "",
+    createdAt: new Date().toISOString(),
+    ...seed
+  };
+}
+
+function composeClientAddress(client) {
+  return [
+    client.street,
+    client.apartment,
+    [client.postalCode, client.city].filter(Boolean).join(" "),
+    client.state,
+    client.country
+  ].filter(Boolean).join("\n");
+}
+
+function normalizeClient(client) {
+  const address = String(client.address || "").trim();
+  const normalized = defaultClient({
+    ...client,
+    name: String(client.name || "").trim(),
+    email: String(client.email || "").trim(),
+    contact: String(client.contact || "").trim(),
+    phone: String(client.phone || "").trim(),
+    mobile: String(client.mobile || "").trim(),
+    fax: String(client.fax || "").trim(),
+    website: String(client.website || "").trim(),
+    country: String(client.country || "Senegal").trim(),
+    street: String(client.street || "").trim(),
+    apartment: String(client.apartment || "").trim(),
+    postalCode: String(client.postalCode || "").trim(),
+    city: String(client.city || "").trim(),
+    state: String(client.state || "").trim(),
+    businessId: String(client.businessId || "").trim(),
+    legalId: String(client.legalId || "").trim(),
+    taxId: String(client.taxId || "").trim(),
+    note: String(client.note || "").trim(),
+    address,
+    createdAt: client.createdAt || new Date().toISOString()
+  });
+  return {
+    ...normalized,
+    address: normalized.address || composeClientAddress(normalized)
+  };
+}
+
+function clientsFromInvoices() {
+  const byName = new Map();
+  invoices.forEach((invoice) => {
+    const name = String(invoice.clientName || "").trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (byName.has(key)) return;
+    byName.set(key, normalizeClient({
+      name,
+      email: invoice.clientEmail,
+      phone: invoice.clientPhone,
+      address: invoice.clientAddress,
+      createdAt: invoice.createdAt || new Date().toISOString()
+    }));
+  });
+  return [...byName.values()];
+}
+
+function mergeClients(source) {
+  const merged = new Map();
+  [...source.map(normalizeClient), ...clientsFromInvoices()].forEach((client) => {
+    const key = clientKey(client);
+    if (!key) return;
+    if (deletedClientKeys?.has(key)) return;
+    const existing = merged.get(key);
+    merged.set(key, existing
+      ? {
+          ...existing,
+          email: existing.email || client.email,
+          contact: existing.contact || client.contact,
+          phone: existing.phone || client.phone,
+          mobile: existing.mobile || client.mobile,
+          fax: existing.fax || client.fax,
+          website: existing.website || client.website,
+          address: existing.address || client.address,
+          country: existing.country || client.country,
+          street: existing.street || client.street,
+          apartment: existing.apartment || client.apartment,
+          postalCode: existing.postalCode || client.postalCode,
+          city: existing.city || client.city,
+          state: existing.state || client.state,
+          businessId: existing.businessId || client.businessId,
+          legalId: existing.legalId || client.legalId,
+          taxId: existing.taxId || client.taxId,
+          note: existing.note || client.note
+        }
+      : client);
+  });
+  return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}
+
+function loadClients() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLIENTS_STORAGE_KEY) || "null");
+    return mergeClients(Array.isArray(saved) ? saved : []);
+  } catch {
+    return mergeClients([]);
+  }
+}
+
+function saveClients() {
+  clients = mergeClients(clients);
+  localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(clients));
+}
+
 function saveInvoices() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+  saveClients();
   scheduleSync();
 }
 
@@ -206,7 +437,12 @@ async function apiFetch(path, options = {}) {
     }
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Erreur serveur");
+  if (!response.ok) {
+    const error = new Error(data.error || "Erreur serveur");
+    error.status = response.status;
+    error.path = path;
+    throw error;
+  }
   return data;
 }
 
@@ -250,6 +486,14 @@ function selectedInvoice() {
 function numberValue(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function fieldValue(field) {
+  return field?.value || "";
+}
+
+function setFieldValue(field, value) {
+  if (field) field.value = value || "";
 }
 
 function calculate(invoice) {
@@ -367,6 +611,7 @@ function readForm() {
   invoice.bic = els.bic.value.trim();
   invoice.clientAddress = els.clientAddress.value.trim();
   invoice.clientEmail = els.clientEmail.value.trim();
+  invoice.clientId = els.invoiceClientSelect.value;
   invoice.clientName = els.clientName.value.trim();
   invoice.clientPhone = els.clientPhone.value.trim();
   invoice.companyAddress = els.companyAddress.value.trim();
@@ -384,7 +629,6 @@ function readForm() {
   invoice.dueDate = els.dueDate.value;
   invoice.iban = els.iban.value.trim();
   invoice.notes = els.notes.value.trim();
-  invoice.number = els.number.value.trim();
   invoice.paid = numberValue(els.paid.value);
   invoice.paymentMethod = els.paymentMethod.value.trim();
   invoice.paymentTerms = els.paymentTerms.value.trim();
@@ -404,6 +648,7 @@ function readForm() {
   renderPreview();
   renderList();
   renderDashboard();
+  renderClients();
 }
 
 function fillForm(invoice) {
@@ -413,6 +658,7 @@ function fillForm(invoice) {
   els.bic.value = invoice.bic;
   els.clientAddress.value = invoice.clientAddress;
   els.clientEmail.value = invoice.clientEmail;
+  els.invoiceClientSelect.value = invoice.clientId || "";
   els.clientName.value = invoice.clientName;
   els.clientPhone.value = invoice.clientPhone;
   els.companyAddress.value = invoice.companyAddress;
@@ -474,6 +720,18 @@ function invoiceNumberValue(invoice) {
   return Number(number);
 }
 
+function documentListTitle(type) {
+  if (type === "DEVIS") return "Devis";
+  if (type === "FACTURE PRO FORMA") return "Factures pro forma";
+  return "Factures";
+}
+
+function documentActionLabel(type) {
+  if (type === "DEVIS") return "Nouveau devis";
+  if (type === "FACTURE PRO FORMA") return "Nouvelle pro forma";
+  return "Nouvelle facture";
+}
+
 function nextInvoiceNumber() {
   const highestNumber = invoices.reduce((max, invoice) => {
     return Math.max(max, invoiceNumberValue(invoice));
@@ -512,9 +770,156 @@ function sortedInvoices(source = invoices) {
   });
 }
 
+function invoiceMatchesFilters(invoice) {
+  const typeFilter = els.documentTypeFilter?.value || "all";
+  const periodFilter = els.periodFilter?.value || "current-year";
+  const invoiceYear = new Date(invoice.date || "").getFullYear();
+  const currentYear = new Date().getFullYear();
+
+  if (typeFilter !== "all" && invoice.documentType !== typeFilter) return false;
+  if (periodFilter === "current-year" && invoiceYear !== currentYear) return false;
+  if (invoiceStatusFilter === "paid" && invoice.status !== "Payee") return false;
+  if (invoiceStatusFilter === "unpaid" && invoice.status === "Payee") return false;
+  if (invoiceStatusFilter === "due" && invoice.status !== "En retard") return false;
+  return true;
+}
+
+function showView(view) {
+  currentView = view;
+  isCreatingInvoice = false;
+  closeInvoiceModal();
+  render();
+  if (view === "overview") {
+    triggerWelcomeAnimation();
+  }
+  const target = view === "overview" ? ".dashboard" : view === "clients" ? ".clients-page" : ".document-browser";
+  document.querySelector(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function showDocumentList(type = "FACTURE") {
+  currentView = "invoices";
+  isCreatingInvoice = false;
+  invoiceStatusFilter = "all";
+  if (els.documentTypeFilter) els.documentTypeFilter.value = type;
+  els.statusFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.statusFilter === "all");
+  });
+  render();
+  document.querySelector(".document-browser")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function openInvoiceModal() {
+  const invoice = selectedInvoice();
+  renderSummary();
+  renderPreview();
+  els.invoiceModalTitle.textContent = `${invoice.documentType} ${invoice.number}`;
+  els.invoiceModalPreview.innerHTML = els.invoicePreview.innerHTML;
+  els.invoiceModal.hidden = false;
+  document.body.classList.add("invoice-modal-open");
+}
+
+function closeInvoiceModal() {
+  if (!els.invoiceModal) return;
+  els.invoiceModal.hidden = true;
+  document.body.classList.remove("invoice-modal-open", "modal-printing");
+}
+
+async function saveSelectedInvoice() {
+  readForm();
+  if (authToken) {
+    clearTimeout(syncTimer);
+    await syncInvoices().catch((error) => console.error(error));
+  }
+}
+
+function editSelectedInvoice() {
+  closeInvoiceModal();
+  currentView = "invoices";
+  isCreatingInvoice = true;
+  render();
+  document.querySelector(".page-head")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function deleteSelectedInvoice() {
+  const invoice = selectedInvoice();
+  if (!invoice) return;
+  if (!confirm(`Supprimer ${invoice.documentType.toLowerCase()} numero ${invoice.number} ?`)) return;
+
+  const currentId = selectedId;
+  if (invoices.length === 1) {
+    invoices = [defaultInvoice({ number: nextInvoiceNumber() })];
+  } else {
+    invoices = invoices.filter((item) => item.id !== selectedId);
+  }
+  selectedId = invoices[0].id;
+  closeInvoiceModal();
+  saveInvoices();
+  if (authToken && isPersistedId(currentId)) {
+    await apiFetch(`/api/invoices/${currentId}`, { method: "DELETE" });
+  }
+  isCreatingInvoice = false;
+  currentView = "invoices";
+  render();
+}
+
+function safeFileName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toUpperCase();
+}
+
+function currentStylesText() {
+  return [...document.styleSheets].map((sheet) => {
+    try {
+      return [...sheet.cssRules].map((rule) => rule.cssText).join("\n");
+    } catch {
+      return "";
+    }
+  }).join("\n");
+}
+
+function downloadInvoiceFile() {
+  const invoice = selectedInvoice();
+  renderSummary();
+  renderPreview();
+
+  const documentName = `${safeFileName(invoice.documentType)}-${safeFileName(invoice.number)}`;
+  const html = `<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <title>${escapeHtml(invoice.documentType)} ${escapeHtml(invoice.number)}</title>
+    <style>
+      ${currentStylesText()}
+      body { margin: 0; background: #fff; }
+      .saved-invoice-page { display: grid; min-height: 100vh; place-items: start center; padding: 24px; background: #fff; }
+      .zm-document { box-shadow: none; }
+    </style>
+  </head>
+  <body>
+    <main class="saved-invoice-page">
+      ${els.invoicePreview.innerHTML}
+    </main>
+  </body>
+</html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${documentName}.html`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function renderList() {
   const query = els.search.value.trim().toLowerCase();
   const visibleInvoices = sortedInvoices(invoices.filter((invoice) => {
+    if (!invoiceMatchesFilters(invoice)) return false;
     return [invoice.number, invoice.clientName, invoice.status, invoice.documentType]
       .join(" ")
       .toLowerCase()
@@ -523,7 +928,8 @@ function renderList() {
 
   els.invoiceList.innerHTML = visibleInvoices.length
     ? ""
-    : '<p class="empty-state">Aucune facture trouvee.</p>';
+    : '<p class="empty-state invoice-table-empty">Pas de donnees</p>';
+  els.invoiceListTotal.textContent = `${visibleInvoices.length} ${visibleInvoices.length > 1 ? "FACTURES" : "FACTURE"}`;
 
   visibleInvoices.forEach((invoice) => {
     const totals = calculate(invoice);
@@ -531,17 +937,25 @@ function renderList() {
     card.className = `invoice-card${invoice.id === selectedId ? " active" : ""}`;
     card.type = "button";
     card.innerHTML = `
-      <span class="invoice-number-pill">${escapeHtml(invoice.documentType)} ${escapeHtml(invoice.number)}</span>
-      <span class="status ${statusClass(invoice.status)}">${escapeHtml(invoice.documentType)} - ${escapeHtml(invoice.status)}</span>
+      <span class="invoice-number-pill">
+        <strong>${escapeHtml(invoice.number)}</strong>
+      </span>
       <strong>${escapeHtml(invoice.clientName || "Client sans nom")}</strong>
-      <span class="invoice-meta">
+      <span class="invoice-date-stack">
         <span>${escapeHtml(formatDate(invoice.date))}</span>
-        <span>${money(totals.total, invoice.currency)}</span>
+        <span>${escapeHtml(formatDate(invoice.dueDate))}</span>
+      </span>
+      <span class="status ${statusClass(invoice.status)}">${escapeHtml(invoice.status)}</span>
+      <span class="invoice-amount">${money(totals.total, invoice.currency)}</span>
+      <span class="invoice-meta">
+        <span>${escapeHtml(invoice.paymentMethod || "Non defini")}</span>
       </span>
     `;
     card.addEventListener("click", () => {
       selectedId = invoice.id;
+      isCreatingInvoice = false;
       render();
+      openInvoiceModal();
     });
     els.invoiceList.append(card);
   });
@@ -571,6 +985,49 @@ function dashboardStats() {
   }, { balance: 0, count: 0, late: 0, paid: 0, revenue: 0 });
 }
 
+function monthlyRevenueData() {
+  const monthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short" });
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
+    return {
+      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+      label: monthFormatter.format(date).replace(".", ""),
+      total: 0
+    };
+  });
+  const byKey = new Map(months.map((month) => [month.key, month]));
+
+  invoices.forEach((invoice) => {
+    if (invoice.documentType !== "FACTURE") return;
+    const date = new Date(invoice.date || "");
+    if (Number.isNaN(date.getTime())) return;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const month = byKey.get(key);
+    if (month) month.total += calculate(invoice).total;
+  });
+
+  return months;
+}
+
+function renderRevenueChart(currency) {
+  const months = monthlyRevenueData();
+  const peak = Math.max(...months.map((month) => month.total), 0);
+  els.chartPeakText.textContent = `${money(peak, currency)} max`;
+  els.revenueChart.innerHTML = months.map((month) => {
+    const height = peak ? Math.max(10, Math.round((month.total / peak) * 100)) : 0;
+    return `
+      <div class="chart-bar-item" title="${escapeHtml(month.label)}: ${money(month.total, currency)}">
+        <div class="chart-bar-track">
+          <span class="chart-bar" style="height: ${height}%"></span>
+        </div>
+        <strong>${escapeHtml(month.label)}</strong>
+        <span>${money(month.total, currency)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
 function renderDashboard() {
   const stats = dashboardStats();
   const currency = selectedInvoice()?.currency || "XOF";
@@ -580,6 +1037,7 @@ function renderDashboard() {
   els.paidMetric.textContent = money(stats.paid, currency);
   els.pendingMetric.textContent = money(stats.balance, currency);
   els.lateMetric.textContent = money(stats.late, currency);
+  renderRevenueChart(currency);
 
   els.dashboardTableBody.innerHTML = "";
   sortedInvoices().forEach((invoice) => {
@@ -598,7 +1056,7 @@ function renderDashboard() {
     row.addEventListener("click", () => {
       selectedId = invoice.id;
       render();
-      document.querySelector(".topbar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openInvoiceModal();
     });
     els.dashboardTableBody.append(row);
   });
@@ -618,6 +1076,17 @@ function renderAuthState() {
     els.userHistory.hidden = true;
     resetUserForm();
   }
+  renderClients();
+}
+
+function triggerWelcomeAnimation() {
+  clearTimeout(welcomeTimer);
+  document.body.classList.remove("welcome-active");
+  void document.body.offsetWidth;
+  document.body.classList.add("welcome-active");
+  welcomeTimer = setTimeout(() => {
+    document.body.classList.remove("welcome-active");
+  }, 20000);
 }
 
 async function loadRemoteInvoices() {
@@ -625,16 +1094,36 @@ async function loadRemoteInvoices() {
   try {
     const { invoices: remoteInvoices } = await apiFetch("/api/invoices");
     if (remoteInvoices.length) {
-      invoices = remoteInvoices.map(normalizeInvoice);
+      invoices = uniqueInvoiceNumbers(remoteInvoices.map(normalizeInvoice));
     } else {
       await syncInvoices();
     }
     selectedId = invoices[0]?.id || null;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
     await syncInvoices();
+    clients = mergeClients(clients);
+    saveClients();
     render();
   } finally {
     isHydrating = false;
+  }
+}
+
+async function loadRemoteClients() {
+  if (!authToken) {
+    clients = loadClients();
+    renderClients();
+    return;
+  }
+  try {
+    const data = await apiFetch("/api/clients");
+    clients = mergeClients(data.clients || []);
+    saveClients();
+    renderClients();
+  } catch (error) {
+    console.error(error);
+    clients = loadClients();
+    renderClients();
   }
 }
 
@@ -643,6 +1132,243 @@ async function loadUsers() {
   const data = await apiFetch("/api/users");
   users = data.users;
   renderUsers();
+}
+
+function clientDocumentCount(name) {
+  const key = String(name || "").trim().toLowerCase();
+  return invoices.filter((invoice) => String(invoice.clientName || "").trim().toLowerCase() === key).length;
+}
+
+function renderClients() {
+  clients = mergeClients(clients);
+  renderClientOptions();
+  const query = String(els.clientSearch?.value || "").trim().toLowerCase();
+  const visibleClients = clients.filter((client) => {
+    return [
+      client.name,
+      client.email,
+      client.contact,
+      client.phone,
+      client.mobile,
+      client.address,
+      client.businessId,
+      client.legalId,
+      client.taxId
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+
+  els.clientsList.innerHTML = visibleClients.length
+    ? ""
+    : '<p class="empty-state invoice-table-empty">Pas de clients.</p>';
+  els.clientsListTotal.textContent = `${visibleClients.length} CLIENT${visibleClients.length > 1 ? "S" : ""}`;
+
+  visibleClients.forEach((client) => {
+    const row = document.createElement("div");
+    row.className = "client-row";
+    const documentCount = clientDocumentCount(client.name);
+    row.innerHTML = `
+      <div>
+        <strong>${escapeHtml(client.name || "Client sans nom")}</strong>
+        <span>${escapeHtml(client.contact || client.email || "Contact non renseigne")}</span>
+      </div>
+      <div>
+        <strong>${escapeHtml(client.phone || client.mobile || "Telephone non renseigne")}</strong>
+        <span>${escapeHtml(client.email || "Email non renseigne")}</span>
+      </div>
+      <p>${escapeHtml(client.address || "Adresse non renseignee")}</p>
+      <strong>${documentCount} document${documentCount > 1 ? "s" : ""}</strong>
+      <div class="client-row-actions">
+        <button type="button" data-action="edit">Modifier</button>
+        <button class="danger" type="button" data-action="delete">Supprimer</button>
+      </div>
+    `;
+    row.querySelector('[data-action="edit"]').addEventListener("click", () => startClientEdit(client));
+    row.querySelector('[data-action="delete"]').addEventListener("click", () => deleteClient(client));
+    els.clientsList.append(row);
+  });
+}
+
+function renderClientOptions() {
+  if (!els.invoiceClientSelect) return;
+  const currentValue = els.invoiceClientSelect.value;
+  els.invoiceClientSelect.innerHTML = `
+    <option value="">Selectionner un client</option>
+    ${clients.map((client) => `
+      <option value="${escapeHtml(client.id)}">${escapeHtml(client.name || "Client sans nom")}</option>
+    `).join("")}
+  `;
+  els.invoiceClientSelect.value = clients.some((client) => client.id === currentValue) ? currentValue : "";
+}
+
+function applyClientToInvoice(client) {
+  const invoice = selectedInvoice();
+  if (!invoice || !client) return;
+
+  invoice.clientId = client.id;
+  invoice.clientName = client.name || "";
+  invoice.clientEmail = client.email || "";
+  invoice.clientPhone = client.phone || client.mobile || "";
+  invoice.clientAddress = client.address || composeClientAddress(client);
+  invoice.clientBusinessId = client.businessId || "";
+  invoice.clientLegalId = client.legalId || "";
+  invoice.clientTaxId = client.taxId || "";
+
+  saveInvoices();
+  fillForm(invoice);
+  renderSummary();
+  renderPreview();
+  renderList();
+  renderDashboard();
+}
+
+function resetClientForm() {
+  setFieldValue(els.editingClientId, "");
+  els.clientForm.reset();
+  els.clientForm.hidden = true;
+  setFieldValue(els.newClientCountry, "Senegal");
+  els.saveClientBtn.textContent = "Ajouter le client";
+  els.showClientFormBtn.textContent = "Nouveau client";
+}
+
+function readClientForm() {
+  const client = normalizeClient({
+    id: fieldValue(els.editingClientId) || crypto.randomUUID(),
+    name: fieldValue(els.newClientName),
+    email: fieldValue(els.newClientEmail),
+    contact: fieldValue(els.newClientContact),
+    phone: fieldValue(els.newClientPhone),
+    mobile: fieldValue(els.newClientMobile),
+    fax: fieldValue(els.newClientFax),
+    website: fieldValue(els.newClientWebsite),
+    country: fieldValue(els.newClientCountry) || "Senegal",
+    street: fieldValue(els.newClientStreet),
+    apartment: fieldValue(els.newClientApartment),
+    postalCode: fieldValue(els.newClientPostalCode),
+    city: fieldValue(els.newClientCity),
+    state: fieldValue(els.newClientState),
+    businessId: fieldValue(els.newClientBusinessId),
+    legalId: fieldValue(els.newClientLegalId),
+    taxId: fieldValue(els.newClientTaxId),
+    note: fieldValue(els.newClientNote)
+  });
+  return {
+    ...client,
+    address: composeClientAddress(client)
+  };
+}
+
+function fillClientForm(client) {
+  setFieldValue(els.editingClientId, client.id);
+  setFieldValue(els.newClientName, client.name);
+  setFieldValue(els.newClientEmail, client.email);
+  setFieldValue(els.newClientContact, client.contact);
+  setFieldValue(els.newClientPhone, client.phone);
+  setFieldValue(els.newClientMobile, client.mobile);
+  setFieldValue(els.newClientFax, client.fax);
+  setFieldValue(els.newClientWebsite, client.website);
+  setFieldValue(els.newClientCountry, client.country || "Senegal");
+  setFieldValue(els.newClientStreet, client.street);
+  setFieldValue(els.newClientApartment, client.apartment);
+  setFieldValue(els.newClientPostalCode, client.postalCode);
+  setFieldValue(els.newClientCity, client.city);
+  setFieldValue(els.newClientState, client.state);
+  setFieldValue(els.newClientBusinessId, client.businessId);
+  setFieldValue(els.newClientLegalId, client.legalId);
+  setFieldValue(els.newClientTaxId, client.taxId);
+  setFieldValue(els.newClientNote, client.note);
+}
+
+function startClientEdit(client) {
+  fillClientForm(client);
+  els.clientForm.hidden = false;
+  els.saveClientBtn.textContent = "Sauvegarder le client";
+  els.showClientFormBtn.textContent = "Client en modification";
+  els.clientForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function saveClientLocally(client, isEditing) {
+  if (isEditing) {
+    clients = clients.map((item) => item.id === client.id ? client : item);
+  } else {
+    clients = [client, ...clients];
+  }
+  deletedClientKeys.delete(clientKey(client));
+  saveDeletedClientKeys();
+  saveClients();
+  resetClientForm();
+  renderClients();
+}
+
+async function createClient(event) {
+  event.preventDefault();
+  const client = readClientForm();
+  if (!client.name) return;
+  const isEditing = Boolean(fieldValue(els.editingClientId));
+
+  try {
+    if (authToken && isEditing && isPersistedId(client.id)) {
+      const data = await apiFetch(`/api/clients/${client.id}`, {
+        method: "PUT",
+        body: JSON.stringify(client)
+      });
+      clients = clients.map((item) => item.id === client.id ? normalizeClient(data.client) : item);
+    } else if (isEditing) {
+      clients = clients.map((item) => item.id === client.id ? client : item);
+    } else if (authToken) {
+      const data = await apiFetch("/api/clients", {
+        method: "POST",
+        body: JSON.stringify(client)
+      });
+      clients = [normalizeClient(data.client), ...clients];
+    } else {
+      clients = [client, ...clients];
+    }
+    deletedClientKeys.delete(clientKey(client));
+    saveDeletedClientKeys();
+    saveClients();
+    resetClientForm();
+    renderClients();
+  } catch (error) {
+    if (error.status === 404 && String(error.path || "").startsWith("/api/clients")) {
+      saveClientLocally(client, isEditing);
+      alert("Client enregistre localement. Le backend Render doit etre redeploye pour enregistrer les clients dans MongoDB.");
+      return;
+    }
+    alert(error.message);
+  }
+}
+
+async function deleteClient(client) {
+  const documentCount = clientDocumentCount(client.name);
+  const detail = documentCount
+    ? ` ${documentCount} document${documentCount > 1 ? "s" : ""} resteront dans l'historique.`
+    : "";
+  if (!confirm(`Supprimer le client ${client.name} ?${detail}`)) return;
+
+  try {
+    if (authToken && isPersistedId(client.id)) {
+      await apiFetch(`/api/clients/${client.id}`, { method: "DELETE" });
+    }
+    deletedClientKeys.add(clientKey(client));
+    saveDeletedClientKeys();
+    clients = clients.filter((item) => item.id !== client.id);
+    saveClients();
+    renderClients();
+  } catch (error) {
+    if (error.status === 404 && String(error.path || "").startsWith("/api/clients")) {
+      deletedClientKeys.add(clientKey(client));
+      saveDeletedClientKeys();
+      clients = clients.filter((item) => item.id !== client.id);
+      saveClients();
+      renderClients();
+      alert("Client supprime localement. Le backend Render doit etre redeploye pour synchroniser cette action.");
+      return;
+    }
+    alert(error.message);
+  }
 }
 
 function requireAdminAction(showMessage = true) {
@@ -754,7 +1480,12 @@ async function login(email, password) {
   localStorage.setItem(TOKEN_KEY, token);
   renderAuthState();
   await loadRemoteInvoices();
+  await loadRemoteClients();
   await loadUsers();
+  currentView = "overview";
+  isCreatingInvoice = false;
+  render();
+  triggerWelcomeAnimation();
 }
 
 async function restoreSession() {
@@ -767,7 +1498,12 @@ async function restoreSession() {
     currentUser = user;
     renderAuthState();
     await loadRemoteInvoices();
+    await loadRemoteClients();
     await loadUsers();
+    currentView = "overview";
+    isCreatingInvoice = false;
+    render();
+    triggerWelcomeAnimation();
   } catch {
     authToken = "";
     currentUser = null;
@@ -779,9 +1515,25 @@ async function restoreSession() {
 function renderSummary() {
   const invoice = selectedInvoice();
   const totals = calculate(invoice);
-  els.pageTitle.textContent = `${invoice.documentType} ${invoice.number} - ${invoice.clientName || "Client"}`;
+  if (isCreatingInvoice) {
+    els.pageTitle.textContent = documentListTitle(invoice.documentType);
+    els.creationCrumb.hidden = false;
+  } else if (currentView === "invoices") {
+    els.pageTitle.textContent = documentListTitle(els.documentTypeFilter?.value);
+    els.creationCrumb.hidden = true;
+  } else if (currentView === "overview") {
+    els.pageTitle.textContent = "Vue d'ensemble";
+    els.creationCrumb.hidden = true;
+  } else if (currentView === "clients") {
+    els.pageTitle.textContent = "Clients";
+    els.creationCrumb.hidden = true;
+  } else {
+    els.pageTitle.textContent = `${invoice.documentType} ${invoice.number} - ${invoice.clientName || "Client"}`;
+    els.creationCrumb.hidden = true;
+  }
   els.totalDueText.textContent = money(totals.total, invoice.currency);
   els.balanceText.textContent = money(totals.balance, invoice.currency);
+  els.newInvoiceBtn.textContent = documentActionLabel(els.documentTypeFilter?.value);
   updateAllRowTotals();
 }
 
@@ -800,7 +1552,10 @@ function renderPreview() {
     invoice.clientName,
     invoice.clientPhone,
     invoice.clientEmail,
-    invoice.clientAddress
+    invoice.clientAddress,
+    invoice.clientBusinessId ? `Business ID: ${invoice.clientBusinessId}` : "",
+    invoice.clientLegalId ? `NINEA / RC: ${invoice.clientLegalId}` : "",
+    invoice.clientTaxId ? `Tax ID: ${invoice.clientTaxId}` : ""
   ]);
   const lines = invoice.items
     .filter((item) => item.description || item.quantity || item.price)
@@ -905,16 +1660,66 @@ function renderPreview() {
 function render() {
   const invoice = selectedInvoice();
   selectedId = invoice.id;
+  document.body.classList.toggle("invoice-create-mode", isCreatingInvoice);
+  document.body.classList.toggle("invoice-list-mode", !isCreatingInvoice && currentView === "invoices");
+  document.body.classList.toggle("overview-mode", !isCreatingInvoice && currentView === "overview");
+  document.body.classList.toggle("clients-mode", !isCreatingInvoice && currentView === "clients");
+  els.documentTypeLinks.forEach((link) => {
+    link.classList.toggle("active", !isCreatingInvoice && currentView === "invoices" && link.dataset.documentFilter === els.documentTypeFilter?.value);
+  });
+  els.overviewNavLink.classList.toggle("active", !isCreatingInvoice && currentView === "overview");
+  els.clientsNavLink.classList.toggle("active", !isCreatingInvoice && currentView === "clients");
+  renderClientOptions();
   fillForm(invoice);
   renderList();
   renderDashboard();
+  renderClients();
   renderSummary();
   renderPreview();
 }
 
 els.form.addEventListener("input", readForm);
 els.form.addEventListener("change", readForm);
+els.invoiceClientSelect.addEventListener("change", () => {
+  const client = clients.find((item) => item.id === els.invoiceClientSelect.value);
+  if (client) applyClientToInvoice(client);
+});
 els.search.addEventListener("input", renderList);
+els.documentTypeFilter.addEventListener("change", render);
+els.periodFilter.addEventListener("change", renderList);
+els.statusFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    invoiceStatusFilter = button.dataset.statusFilter;
+    els.statusFilterButtons.forEach((item) => {
+      item.classList.toggle("active", item === button);
+    });
+    renderList();
+  });
+});
+els.documentTypeLinks.forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    showDocumentList(link.dataset.documentFilter);
+  });
+});
+els.overviewNavLink.addEventListener("click", (event) => {
+  event.preventDefault();
+  showView("overview");
+});
+els.clientsNavLink.addEventListener("click", (event) => {
+  event.preventDefault();
+  showView("clients");
+});
+els.clientSearch.addEventListener("input", renderClients);
+els.showClientFormBtn.addEventListener("click", () => {
+  resetClientForm();
+  els.clientForm.hidden = false;
+  els.saveClientBtn.textContent = "Ajouter le client";
+  els.showClientFormBtn.textContent = "Nouveau client";
+  els.newClientName.focus();
+});
+els.cancelClientFormBtn.addEventListener("click", resetClientForm);
+els.clientForm.addEventListener("submit", createClient);
 els.sortBy.addEventListener("change", () => {
   renderList();
   renderDashboard();
@@ -930,7 +1735,11 @@ els.addItemBtn.addEventListener("click", () => {
 });
 
 els.newInvoiceBtn.addEventListener("click", () => {
+  const activeType = els.documentTypeFilter?.value && els.documentTypeFilter.value !== "all"
+    ? els.documentTypeFilter.value
+    : "FACTURE";
   const invoice = defaultInvoice({
+    documentType: activeType,
     number: nextInvoiceNumber(),
     date: today(),
     dueDate: today(14),
@@ -938,8 +1747,46 @@ els.newInvoiceBtn.addEventListener("click", () => {
   });
   invoices = [invoice, ...invoices];
   selectedId = invoice.id;
+  isCreatingInvoice = true;
   saveInvoices();
   render();
+  document.querySelector(".page-head")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+els.backToListBtn.addEventListener("click", () => {
+  isCreatingInvoice = false;
+  currentView = "invoices";
+  render();
+  document.querySelector(".document-browser")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+els.saveInvoiceBtn.addEventListener("click", async () => {
+  readForm();
+  const savedType = selectedInvoice().documentType;
+  if (authToken) {
+    clearTimeout(syncTimer);
+    await syncInvoices().catch((error) => console.error(error));
+  }
+  showDocumentList(savedType);
+  document.querySelector(".document-browser")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+els.modalCloseBtn.addEventListener("click", closeInvoiceModal);
+els.invoiceModalBackdrop.addEventListener("click", closeInvoiceModal);
+els.modalPrintBtn.addEventListener("click", () => {
+  document.body.classList.add("modal-printing");
+  window.print();
+});
+els.modalSaveBtn.addEventListener("click", downloadInvoiceFile);
+els.modalEditBtn.addEventListener("click", editSelectedInvoice);
+els.modalDeleteBtn.addEventListener("click", deleteSelectedInvoice);
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("modal-printing");
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !els.invoiceModal.hidden) {
+    closeInvoiceModal();
+  }
 });
 
 els.duplicateBtn.addEventListener("click", () => {
@@ -947,7 +1794,7 @@ els.duplicateBtn.addEventListener("click", () => {
   const copy = defaultInvoice({
     ...structuredClone(source),
     id: crypto.randomUUID(),
-    number: `${source.number}-COPIE`,
+    number: nextInvoiceNumber(),
     status: "Brouillon",
     date: today(),
     dueDate: today(14),
@@ -959,20 +1806,7 @@ els.duplicateBtn.addEventListener("click", () => {
   render();
 });
 
-els.deleteBtn.addEventListener("click", async () => {
-  const currentId = selectedId;
-  if (invoices.length === 1) {
-    invoices = [defaultInvoice()];
-  } else {
-    invoices = invoices.filter((invoice) => invoice.id !== selectedId);
-  }
-  selectedId = invoices[0].id;
-  saveInvoices();
-  if (authToken && isPersistedId(currentId)) {
-    await apiFetch(`/api/invoices/${currentId}`, { method: "DELETE" });
-  }
-  render();
-});
+els.deleteBtn.addEventListener("click", deleteSelectedInvoice);
 
 els.printBtn.addEventListener("click", () => window.print());
 
@@ -989,6 +1823,8 @@ els.loginForm.addEventListener("submit", async (event) => {
 els.logoutBtn.addEventListener("click", () => {
   authToken = "";
   currentUser = null;
+  clearTimeout(welcomeTimer);
+  document.body.classList.remove("welcome-active");
   localStorage.removeItem(TOKEN_KEY);
   renderAuthState();
 });

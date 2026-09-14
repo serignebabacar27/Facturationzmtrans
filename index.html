@@ -10,7 +10,9 @@
     <section class="auth-screen" id="authScreen">
       <form class="auth-card" id="loginForm">
         <div class="brand auth-brand">
-          <span class="brand-mark">F</span>
+          <span class="auth-logo-frame">
+            <img class="auth-logo" src="assets/logo-zm-trans.png" alt="ZM Trans Logistics">
+          </span>
           <div>
             <h1>Facturation ZMTRANS</h1>
             <p>Connexion securisee</p>
@@ -30,62 +32,297 @@
     </section>
 
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Factures">
-        <div class="brand">
-          <span class="brand-mark">F</span>
-          <div>
-            <h1>Facturation ZMTRANS</h1>
-            <p>Gestion des factures</p>
+      <aside class="sidebar" aria-label="Navigation principale">
+        <div class="side-section">
+          <a class="nav-item" id="overviewNavLink" href="#dashboard">
+            <span class="nav-icon">V</span>
+            <span>Vue d'ensemble</span>
+          </a>
+          <div class="nav-group is-open">
+            <div class="nav-item nav-heading">
+              <span class="nav-icon">D</span>
+              <span>Documents</span>
+              <span class="nav-caret">v</span>
+            </div>
+            <a class="sub-nav active" id="invoicesNavLink" data-document-filter="FACTURE" href="#factures">Factures</a>
+            <a class="sub-nav" data-document-filter="DEVIS" href="#devis">Devis</a>
+            <a class="sub-nav" data-document-filter="FACTURE PRO FORMA" href="#pro-forma">Factures pro forma</a>
+            <a class="sub-nav" href="#invoiceForm">Bons de commande</a>
+            <a class="sub-nav" href="#invoiceForm">Bons de livraison</a>
+            <a class="sub-nav" href="#invoiceForm">Avoirs</a>
           </div>
+          <a class="nav-item" href="#dashboard">
+            <span class="nav-icon">F</span>
+            <span>Frais</span>
+          </a>
+          <a class="nav-item" id="clientsNavLink" href="#clientsPage">
+            <span class="nav-icon">C</span>
+            <span>Clients</span>
+          </a>
+          <a class="nav-item" href="#invoiceForm">
+            <span class="nav-icon">S</span>
+            <span>Services/Produits</span>
+          </a>
+          <a class="nav-item" href="#invoicePreview">
+            <span class="nav-icon">I</span>
+            <span>Apercu facture</span>
+          </a>
+          <a class="nav-item" href="#adminPanel">
+            <span class="nav-icon">P</span>
+            <span>Parametres</span>
+          </a>
         </div>
 
-        <div class="user-box">
-          <span id="currentUserText">Non connecte</span>
-          <button id="logoutBtn" type="button">Deconnexion</button>
+        <div class="sidebar-brand">
+          <img src="assets/logo-zm-trans.png" alt="ZM Trans Logistics">
+          <span>v1.0.0</span>
         </div>
-
-        <button class="primary-action" id="newInvoiceBtn" type="button">Nouvelle facture</button>
-
-        <label class="search-box">
-          <span>Rechercher</span>
-          <input id="searchInput" type="search" placeholder="Client, numero, statut">
-        </label>
-
-        <div class="sort-panel" aria-label="Tri des factures">
-          <label>
-            <span>Trier par</span>
-            <select id="sortByInput">
-              <option value="number">Numero</option>
-              <option value="date">Date</option>
-              <option value="status">Statut</option>
-              <option value="client">Client</option>
-              <option value="amount">Montant</option>
-            </select>
-          </label>
-          <label>
-            <span>Ordre</span>
-            <select id="sortDirectionInput">
-              <option value="desc">Decroissant</option>
-              <option value="asc">Croissant</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="invoice-list" id="invoiceList" aria-live="polite"></div>
       </aside>
 
       <main class="workspace">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">Edition</p>
-            <h2 id="pageTitle">Facture</h2>
+          <div class="trial-banner">
+            Interface ZMTRANS modernisee pour la gestion des factures, devis et pro forma.
           </div>
-          <div class="toolbar">
+          <div class="user-box">
+            <span class="avatar-dot">S</span>
+            <span id="currentUserText">Non connecte</span>
+            <button id="logoutBtn" type="button">Deconnexion</button>
+          </div>
+        </header>
+
+        <section class="page-head">
+          <div>
+            <p class="eyebrow">Documents</p>
+            <div class="page-title-line">
+              <h2 id="pageTitle">Facture</h2>
+              <span id="creationCrumb" hidden>/ Nouvelle facture</span>
+            </div>
+          </div>
+          <div class="toolbar browse-actions">
             <button id="duplicateBtn" type="button">Dupliquer</button>
             <button id="deleteBtn" class="danger" type="button">Supprimer</button>
             <button id="printBtn" type="button">Imprimer</button>
+            <button class="primary-action" id="newInvoiceBtn" type="button">Nouvelle facture</button>
           </div>
-        </header>
+          <div class="toolbar creation-actions" aria-label="Actions de creation">
+            <button id="backToListBtn" type="button">Retour</button>
+            <button class="save-action" id="saveInvoiceBtn" type="button">Sauvegarder</button>
+          </div>
+        </section>
+
+        <section class="document-browser" aria-label="Liste des documents">
+          <div class="document-browser-head">
+            <div class="document-tabs" aria-label="Filtres des factures">
+              <button class="active" data-status-filter="all" type="button">Toutes</button>
+              <button data-status-filter="paid" type="button">Payee</button>
+              <button data-status-filter="unpaid" type="button">Impayee</button>
+              <button data-status-filter="due" type="button">Exigible</button>
+            </div>
+
+            <label class="compact-filter">
+              <span>Type</span>
+              <select id="documentTypeFilterInput">
+                <option value="all">Toutes</option>
+                <option value="FACTURE" selected>Factures</option>
+                <option value="DEVIS">Devis</option>
+                <option value="FACTURE PRO FORMA">Pro forma</option>
+              </select>
+            </label>
+
+            <label class="compact-filter">
+              <span>Periode</span>
+              <select id="periodFilterInput">
+                <option value="current-year">Annee en cours</option>
+                <option value="all">Toutes les dates</option>
+              </select>
+            </label>
+
+            <label class="search-box">
+              <span>Rechercher</span>
+              <input id="searchInput" type="search" placeholder="Client, numero, statut">
+            </label>
+
+            <div class="sort-panel" aria-label="Tri des factures">
+              <label>
+                <span>Trier par</span>
+                <select id="sortByInput">
+                  <option value="number">Numero</option>
+                  <option value="date">Date</option>
+                  <option value="status">Statut</option>
+                  <option value="client">Client</option>
+                  <option value="amount">Montant</option>
+                </select>
+              </label>
+              <label>
+                <span>Ordre</span>
+                <select id="sortDirectionInput">
+                  <option value="desc">Decroissant</option>
+                  <option value="asc">Croissant</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="invoice-table-head" aria-hidden="true">
+            <span>#</span>
+            <span>Client</span>
+            <span>Emission / Date d'echeance</span>
+            <span>Status</span>
+            <span>Montant</span>
+            <span>Moyens</span>
+          </div>
+
+          <div class="invoice-list" id="invoiceList" aria-live="polite"></div>
+          <div class="invoice-list-total" id="invoiceListTotal">0 FACTURES</div>
+        </section>
+
+        <section class="clients-page" id="clientsPage" aria-label="Liste des clients">
+          <div class="clients-toolbar">
+            <label class="search-box">
+              <span>Rechercher</span>
+              <input id="clientSearchInput" type="search" placeholder="Nom, email, telephone">
+            </label>
+            <button class="primary-action" id="showClientFormBtn" type="button">Nouveau client</button>
+          </div>
+
+          <form class="client-form" id="clientForm" hidden>
+            <input id="editingClientIdInput" type="hidden">
+            <div class="client-form-tabs" aria-label="Sections client">
+              <span class="active">Les donnees du client</span>
+              <span>Parametres par defaut</span>
+            </div>
+            <section class="client-form-section">
+              <div class="client-section-copy">
+                <h3>Information du client</h3>
+              </div>
+              <div class="client-section-fields two">
+                <label>
+                  <span>Nom du client *</span>
+                  <input id="newClientNameInput" required>
+                </label>
+                <label>
+                  <span>E-mail</span>
+                  <input id="newClientEmailInput" type="email">
+                </label>
+              </div>
+            </section>
+
+            <section class="client-form-section">
+              <div class="client-section-copy">
+                <h3>Adresse</h3>
+                <p>L'adresse apparait sur vos factures, devis et pro forma.</p>
+              </div>
+              <div class="client-section-fields two">
+                <label>
+                  <span>Pays *</span>
+                  <select id="newClientCountryInput">
+                    <option value="Senegal">Senegal</option>
+                    <option value="Mali">Mali</option>
+                    <option value="Guinee">Guinee</option>
+                    <option value="Gambie">Gambie</option>
+                    <option value="Cote d'Ivoire">Cote d'Ivoire</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Rue</span>
+                  <input id="newClientStreetInput">
+                </label>
+                <label>
+                  <span>Etage, appartement</span>
+                  <input id="newClientApartmentInput">
+                </label>
+                <label>
+                  <span>Code postal</span>
+                  <input id="newClientPostalCodeInput">
+                </label>
+                <label>
+                  <span>Ville</span>
+                  <input id="newClientCityInput">
+                </label>
+                <label>
+                  <span>Province/Etat</span>
+                  <input id="newClientStateInput">
+                </label>
+              </div>
+            </section>
+
+            <section class="client-form-section">
+              <div class="client-section-copy">
+                <h3>Identification</h3>
+                <p>Les donnees d'identification apparaissent sur vos factures.</p>
+              </div>
+              <div class="client-section-fields two">
+                <label>
+                  <span>Business ID</span>
+                  <input id="newClientBusinessIdInput">
+                </label>
+                <label>
+                  <span>NINEA / RC</span>
+                  <input id="newClientLegalIdInput">
+                </label>
+                <label>
+                  <span>Tax ID</span>
+                  <input id="newClientTaxIdInput">
+                </label>
+              </div>
+            </section>
+
+            <section class="client-form-section">
+              <div class="client-section-copy">
+                <h3>Informations de contact</h3>
+              </div>
+              <div class="client-section-fields two">
+                <label>
+                  <span>Contact</span>
+                  <input id="newClientContactInput">
+                </label>
+                <label>
+                  <span>Telephone</span>
+                  <input id="newClientPhoneInput">
+                </label>
+                <label>
+                  <span>Mobile</span>
+                  <input id="newClientMobileInput">
+                </label>
+                <label>
+                  <span>Fax</span>
+                  <input id="newClientFaxInput">
+                </label>
+                <label>
+                  <span>Site web</span>
+                  <input id="newClientWebsiteInput">
+                </label>
+              </div>
+            </section>
+
+            <section class="client-form-section">
+              <div class="client-section-copy">
+                <h3>Notes</h3>
+              </div>
+              <div class="client-section-fields">
+                <label>
+                  <span>Note</span>
+                  <textarea id="newClientNoteInput" rows="5"></textarea>
+                </label>
+              </div>
+            </section>
+            <div class="client-form-actions">
+              <button id="cancelClientFormBtn" type="button">Annuler</button>
+              <button class="save-action" id="saveClientBtn" type="submit">Ajouter le client</button>
+            </div>
+          </form>
+
+          <div class="clients-table-head" aria-hidden="true">
+            <span>Client</span>
+            <span>Contact</span>
+            <span>Adresse</span>
+            <span>Documents</span>
+            <span>Action</span>
+          </div>
+          <div class="clients-list" id="clientsList" aria-live="polite"></div>
+          <div class="clients-list-total" id="clientsListTotal">0 CLIENT</div>
+        </section>
 
         <section class="panel admin-panel" id="adminPanel" hidden>
           <div class="panel-title">
@@ -150,8 +387,8 @@
                   </select>
                 </label>
                 <label>
-                  <span>Numero</span>
-                  <input id="numberInput" name="number" required>
+                  <span>Numero automatique</span>
+                  <input id="numberInput" name="number" required readonly title="Numero genere automatiquement">
                 </label>
                 <label>
                   <span>Date</span>
@@ -221,6 +458,12 @@
                 <h3>Client</h3>
               </div>
               <div class="field-grid two">
+                <label class="wide">
+                  <span>Choisir un client enregistre</span>
+                  <select id="invoiceClientSelect" name="invoiceClient">
+                    <option value="">Selectionner un client</option>
+                  </select>
+                </label>
                 <label>
                   <span>Nom</span>
                   <input id="clientNameInput" name="clientName" required>
@@ -323,9 +566,7 @@
                 </label>
               </div>
             </section>
-          </form>
 
-          <aside class="preview-column" aria-label="Apercu de facture">
             <section class="summary-strip">
               <div>
                 <span>Total</span>
@@ -336,12 +577,52 @@
                 <strong id="balanceText">0 XOF</strong>
               </div>
             </section>
+          </form>
 
+          <aside class="preview-column" aria-label="Apercu de facture">
+            <div class="preview-card-title">
+              <span>Apercu final</span>
+              <strong>Temps reel</strong>
+            </div>
             <article class="invoice-preview" id="invoicePreview"></article>
           </aside>
         </section>
 
-        <section class="dashboard" aria-label="Tableau de bord">
+        <section class="dashboard" id="dashboard" aria-label="Tableau de bord">
+          <section class="welcome-card" id="welcomeCard" aria-label="Message de bienvenue">
+            <div class="welcome-illustration" aria-hidden="true">
+              <svg viewBox="0 0 220 180" role="img">
+                <defs>
+                  <linearGradient id="welcomePanelGradient" x1="0" x2="1" y1="0" y2="1">
+                    <stop offset="0%" stop-color="#122947"/>
+                    <stop offset="100%" stop-color="#1d4778"/>
+                  </linearGradient>
+                </defs>
+                <rect class="welcome-window" x="30" y="58" width="150" height="104" rx="18"/>
+                <circle class="welcome-sun" cx="177" cy="39" r="16"/>
+                <g class="welcome-person">
+                  <path class="welcome-body" d="M78 153c7-26 20-39 42-39s35 13 42 39z"/>
+                  <circle class="welcome-head" cx="119" cy="83" r="27"/>
+                  <path class="welcome-hair" d="M92 81c4-22 17-34 38-31 14 2 24 11 26 25-17-11-35-13-64 6z"/>
+                  <circle class="welcome-eye" cx="109" cy="84" r="3"/>
+                  <circle class="welcome-eye" cx="130" cy="84" r="3"/>
+                  <path class="welcome-smile" d="M110 96c7 6 15 6 22 0"/>
+                  <g class="welcome-arm">
+                    <path d="M151 113c18-7 27-20 31-38"/>
+                    <circle cx="184" cy="72" r="7"/>
+                  </g>
+                </g>
+                <path class="welcome-spark one" d="M43 41l8 8m0-8l-8 8"/>
+                <path class="welcome-spark two" d="M171 91l7 7m0-7l-7 7"/>
+              </svg>
+            </div>
+            <div class="welcome-copy">
+              <span>Bonjour</span>
+              <h3>Ravi de vous revoir</h3>
+              <p>Votre tableau de bord ZMTRANS est prêt pour suivre vos factures, devis et encaissements.</p>
+            </div>
+          </section>
+
           <div class="dashboard-head">
             <div>
               <p class="eyebrow">Pilotage</p>
@@ -369,6 +650,17 @@
             </article>
           </div>
 
+          <section class="revenue-chart-card" aria-label="Graphique du chiffre d'affaires">
+            <div class="chart-head">
+              <div>
+                <span>Evolution</span>
+                <h4>Chiffre d'affaires mensuel</h4>
+              </div>
+              <strong id="chartPeakText">0 XOF max</strong>
+            </div>
+            <div class="revenue-chart" id="revenueChart"></div>
+          </section>
+
           <div class="dashboard-table-wrap">
             <table class="dashboard-table">
               <thead>
@@ -386,7 +678,28 @@
           </div>
         </section>
       </main>
+
     </div>
+
+    <section class="invoice-modal" id="invoiceModal" hidden aria-modal="true" role="dialog" aria-label="Apercu de facture">
+      <div class="invoice-modal-backdrop" id="invoiceModalBackdrop"></div>
+      <div class="invoice-modal-shell">
+        <header class="invoice-modal-head">
+          <div>
+            <span>Apercu</span>
+            <h3 id="invoiceModalTitle">Facture</h3>
+          </div>
+          <div class="invoice-modal-actions">
+            <button id="modalEditBtn" type="button">Modifier</button>
+            <button class="danger" id="modalDeleteBtn" type="button">Supprimer</button>
+            <button id="modalPrintBtn" type="button">Imprimer</button>
+            <button class="save-action" id="modalSaveBtn" type="button">Enregistrer</button>
+            <button class="modal-close-btn" id="modalCloseBtn" type="button" aria-label="Fermer">X</button>
+          </div>
+        </header>
+        <article class="invoice-preview invoice-modal-preview" id="invoiceModalPreview"></article>
+      </div>
+    </section>
 
     <template id="itemRowTemplate">
       <div class="item-row">
