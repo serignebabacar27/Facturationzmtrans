@@ -164,6 +164,7 @@ let isCreatingInvoice = false;
 let currentView = "invoices";
 let invoiceStatusFilter = "all";
 let welcomeTimer = null;
+let previousPrintTitle = "";
 
 function getStoredTheme() {
   const savedTheme = localStorage.getItem(THEME_KEY);
@@ -1056,21 +1057,17 @@ async function createInvoicePdfBlob() {
   }
 }
 
-async function downloadInvoiceFile() {
+function downloadInvoiceFile() {
   const invoice = selectedInvoice();
   renderSummary();
   renderPreview();
+  els.invoiceModalPreview.innerHTML = els.invoicePreview.innerHTML;
 
   const documentName = `${safeFileName(invoice.documentType)}-${safeFileName(invoice.number)}`;
-  const blob = await createInvoicePdfBlob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${documentName}.pdf`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  previousPrintTitle = document.title;
+  document.title = `${documentName}.pdf`;
+  document.body.classList.add("modal-printing");
+  window.print();
 }
 
 function renderList() {
@@ -1990,21 +1987,27 @@ els.modalPrintBtn.addEventListener("click", () => {
 els.modalSaveBtn.addEventListener("click", async () => {
   const label = els.modalSaveBtn.textContent;
   els.modalSaveBtn.disabled = true;
-  els.modalSaveBtn.textContent = "Generation PDF...";
+  els.modalSaveBtn.textContent = "Ouverture PDF...";
   try {
-    await downloadInvoiceFile();
+    downloadInvoiceFile();
   } catch (error) {
-    alert("Impossible de generer le PDF. Utilisez le bouton Imprimer puis choisissez Enregistrer en PDF.");
+    alert("Impossible d'ouvrir l'enregistrement PDF. Cliquez sur Imprimer puis choisissez Enregistrer en PDF.");
     console.error(error);
   } finally {
-    els.modalSaveBtn.disabled = false;
-    els.modalSaveBtn.textContent = label;
+    setTimeout(() => {
+      els.modalSaveBtn.disabled = false;
+      els.modalSaveBtn.textContent = label;
+    }, 400);
   }
 });
 els.modalEditBtn.addEventListener("click", editSelectedInvoice);
 els.modalDeleteBtn.addEventListener("click", deleteSelectedInvoice);
 window.addEventListener("afterprint", () => {
   document.body.classList.remove("modal-printing");
+  if (previousPrintTitle) {
+    document.title = previousPrintTitle;
+    previousPrintTitle = "";
+  }
 });
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !els.invoiceModal.hidden) {
