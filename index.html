@@ -47,8 +47,8 @@
             <a class="sub-nav active" id="invoicesNavLink" data-document-filter="FACTURE" href="#factures">Factures</a>
             <a class="sub-nav" data-document-filter="DEVIS" href="#devis">Devis</a>
             <a class="sub-nav" data-document-filter="FACTURE PRO FORMA" href="#pro-forma">Factures pro forma</a>
-            <a class="sub-nav" href="#invoiceForm">Bons de commande</a>
-            <a class="sub-nav" href="#invoiceForm">Bons de livraison</a>
+            <a class="sub-nav" data-document-filter="BON DE COMMANDE" href="#bons-commande">Bons de commande</a>
+            <a class="sub-nav" data-document-filter="BON DE LIVRAISON" href="#bons-livraison">Bons de livraison</a>
             <a class="sub-nav" href="#invoiceForm">Avoirs</a>
           </div>
           <a class="nav-item" href="#dashboard">
@@ -87,6 +87,9 @@
           <div class="user-box">
             <span class="avatar-dot">S</span>
             <span id="currentUserText">Non connecte</span>
+            <button class="theme-toggle" id="themeToggleBtn" type="button" aria-label="Activer le mode sombre" aria-pressed="false">
+              <span id="themeToggleText">Mode sombre</span>
+            </button>
             <button id="logoutBtn" type="button">Deconnexion</button>
           </div>
         </header>
@@ -127,6 +130,8 @@
                 <option value="FACTURE" selected>Factures</option>
                 <option value="DEVIS">Devis</option>
                 <option value="FACTURE PRO FORMA">Pro forma</option>
+                <option value="BON DE COMMANDE">Bons de commande</option>
+                <option value="BON DE LIVRAISON">Bons de livraison</option>
               </select>
             </label>
 
@@ -384,6 +389,8 @@
                     <option value="FACTURE">FACTURE</option>
                     <option value="DEVIS">DEVIS</option>
                     <option value="FACTURE PRO FORMA">FACTURE PRO FORMA</option>
+                    <option value="BON DE COMMANDE">BON DE COMMANDE</option>
+                    <option value="BON DE LIVRAISON">BON DE LIVRAISON</option>
                   </select>
                 </label>
                 <label>

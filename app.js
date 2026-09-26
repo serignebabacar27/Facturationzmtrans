@@ -1,6 +1,7 @@
 const STORAGE_KEY = "facturation.invoices.v3";
 const CLIENTS_STORAGE_KEY = "facturation.clients.v1";
 const DELETED_CLIENTS_STORAGE_KEY = "facturation.deletedClients.v1";
+const THEME_KEY = "facturation.theme.v1";
 const LOGO_SRC = "assets/logo-zm-trans.png";
 const SIGNATURE_SRC = "assets/signature-zm-trans.jpg";
 const TOKEN_KEY = "facturation.authToken.v1";
@@ -135,6 +136,8 @@ const els = {
   statusFilterButtons: document.querySelectorAll("[data-status-filter]"),
   subject: document.querySelector("#subjectInput"),
   taxRate: document.querySelector("#taxRateInput"),
+  themeToggleBtn: document.querySelector("#themeToggleBtn"),
+  themeToggleText: document.querySelector("#themeToggleText"),
   totalDueText: document.querySelector("#totalDueText"),
   currentUserText: document.querySelector("#currentUserText"),
   overviewNavLink: document.querySelector("#overviewNavLink"),
@@ -161,6 +164,31 @@ let isCreatingInvoice = false;
 let currentView = "invoices";
 let invoiceStatusFilter = "all";
 let welcomeTimer = null;
+
+function getStoredTheme() {
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  if (savedTheme === "dark" || savedTheme === "light") return savedTheme;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = nextTheme;
+  if (els.themeToggleBtn) {
+    const isDark = nextTheme === "dark";
+    els.themeToggleBtn.setAttribute("aria-pressed", String(isDark));
+    els.themeToggleBtn.setAttribute("aria-label", isDark ? "Activer le mode clair" : "Activer le mode sombre");
+  }
+  if (els.themeToggleText) {
+    els.themeToggleText.textContent = nextTheme === "dark" ? "Mode clair" : "Mode sombre";
+  }
+}
+
+function toggleTheme() {
+  const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem(THEME_KEY, nextTheme);
+  applyTheme(nextTheme);
+}
 
 function today(offsetDays = 0) {
   const date = new Date();
@@ -532,6 +560,8 @@ function formatDate(value) {
 function documentNumberLabel(type) {
   if (type === "DEVIS") return "Devis";
   if (type === "FACTURE PRO FORMA") return "Facture pro forma";
+  if (type === "BON DE COMMANDE") return "Bon de commande";
+  if (type === "BON DE LIVRAISON") return "Bon de livraison";
   return "Facture";
 }
 
@@ -626,6 +656,7 @@ function readForm() {
   invoice.deliveryDate = els.deliveryDate.value;
   invoice.discountRate = numberValue(els.discountRate.value);
   invoice.documentType = els.documentType.value;
+  document.body.classList.toggle("delivery-document-mode", isDeliveryNote(invoice.documentType));
   invoice.dueDate = els.dueDate.value;
   invoice.iban = els.iban.value.trim();
   invoice.notes = els.notes.value.trim();
@@ -721,15 +752,34 @@ function invoiceNumberValue(invoice) {
 }
 
 function documentListTitle(type) {
+  if (type === "all") return "Tous les documents";
   if (type === "DEVIS") return "Devis";
   if (type === "FACTURE PRO FORMA") return "Factures pro forma";
+  if (type === "BON DE COMMANDE") return "Bons de commande";
+  if (type === "BON DE LIVRAISON") return "Bons de livraison";
   return "Factures";
 }
 
 function documentActionLabel(type) {
   if (type === "DEVIS") return "Nouveau devis";
   if (type === "FACTURE PRO FORMA") return "Nouvelle pro forma";
+  if (type === "BON DE COMMANDE") return "Nouveau bon de commande";
+  if (type === "BON DE LIVRAISON") return "Nouveau bon de livraison";
   return "Nouvelle facture";
+}
+
+function documentCountLabel(type, count) {
+  const plural = count > 1;
+  if (type === "DEVIS") return plural ? "DEVIS" : "DEVIS";
+  if (type === "FACTURE PRO FORMA") return plural ? "PRO FORMAS" : "PRO FORMA";
+  if (type === "BON DE COMMANDE") return plural ? "BONS DE COMMANDE" : "BON DE COMMANDE";
+  if (type === "BON DE LIVRAISON") return plural ? "BONS DE LIVRAISON" : "BON DE LIVRAISON";
+  if (type === "all") return plural ? "DOCUMENTS" : "DOCUMENT";
+  return plural ? "FACTURES" : "FACTURE";
+}
+
+function isDeliveryNote(type) {
+  return type === "BON DE LIVRAISON";
 }
 
 function nextInvoiceNumber() {
@@ -881,35 +931,142 @@ function currentStylesText() {
   }).join("\n");
 }
 
-function downloadInvoiceFile() {
+function bytesFromBase64(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result)));
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function inlineExportImages(root) {
+  const images = [...root.querySelectorAll("img")];
+  await Promise.all(images.map(async (image) => {
+    try {
+      const source = new URL(image.getAttribute("src"), window.location.href).href;
+      const response = await fetch(source);
+      const blob = await response.blob();
+      image.setAttribute("src", await blobToDataUrl(blob));
+    } catch {
+      image.setAttribute("src", image.src);
+    }
+  }));
+}
+
+function loadImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", reject);
+    image.src = source;
+  });
+}
+
+function createPdfBlobFromJpeg(jpegDataUrl) {
+  const jpegBytes = bytesFromBase64(jpegDataUrl.split(",")[1] || "");
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`,
+    `<< /Type /XObject /Subtype /Image /Width 1588 /Height 2246 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
+    `<< /Length ${`q ${pageWidth} 0 0 ${pageHeight} 0 0 cm /Im0 Do Q`.length} >>\nstream\nq ${pageWidth} 0 0 ${pageHeight} 0 0 cm /Im0 Do Q\nendstream`
+  ];
+  const encoder = new TextEncoder();
+  const parts = [encoder.encode("%PDF-1.4\n")];
+  const offsets = [0];
+  let length = parts[0].length;
+
+  objects.forEach((object, index) => {
+    offsets.push(length);
+    const header = encoder.encode(`${index + 1} 0 obj\n${object}`);
+    parts.push(header);
+    length += header.length;
+    if (index === 3) {
+      parts.push(jpegBytes);
+      length += jpegBytes.length;
+      const footer = encoder.encode("\nendstream\nendobj\n");
+      parts.push(footer);
+      length += footer.length;
+    } else {
+      const footer = encoder.encode("\nendobj\n");
+      parts.push(footer);
+      length += footer.length;
+    }
+  });
+
+  const xrefOffset = length;
+  let xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    xref += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  xref += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  parts.push(encoder.encode(xref));
+  return new Blob(parts, { type: "application/pdf" });
+}
+
+async function createInvoicePdfBlob() {
+  const source = els.invoiceModalPreview.querySelector(".zm-document") || els.invoicePreview.querySelector(".zm-document");
+  if (!source) throw new Error("Aucun document a enregistrer.");
+
+  const clone = source.cloneNode(true);
+  clone.style.width = "794px";
+  clone.style.minHeight = "1123px";
+  clone.style.margin = "0";
+  clone.style.boxShadow = "none";
+  await inlineExportImages(clone);
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="794" height="1123" viewBox="0 0 794 1123">
+      <foreignObject width="794" height="1123">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <style>
+            ${currentStylesText()}
+            body { margin: 0; background: #fff; }
+            .zm-document { box-shadow: none !important; transform: none !important; }
+          </style>
+          ${clone.outerHTML}
+        </div>
+      </foreignObject>
+    </svg>`;
+  const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    const image = await loadImage(svgUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1588;
+    canvas.height = 2246;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return createPdfBlobFromJpeg(canvas.toDataURL("image/jpeg", 0.95));
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+async function downloadInvoiceFile() {
   const invoice = selectedInvoice();
   renderSummary();
   renderPreview();
 
   const documentName = `${safeFileName(invoice.documentType)}-${safeFileName(invoice.number)}`;
-  const html = `<!doctype html>
-<html lang="fr">
-  <head>
-    <meta charset="utf-8">
-    <title>${escapeHtml(invoice.documentType)} ${escapeHtml(invoice.number)}</title>
-    <style>
-      ${currentStylesText()}
-      body { margin: 0; background: #fff; }
-      .saved-invoice-page { display: grid; min-height: 100vh; place-items: start center; padding: 24px; background: #fff; }
-      .zm-document { box-shadow: none; }
-    </style>
-  </head>
-  <body>
-    <main class="saved-invoice-page">
-      ${els.invoicePreview.innerHTML}
-    </main>
-  </body>
-</html>`;
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const blob = await createInvoicePdfBlob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${documentName}.html`;
+  link.download = `${documentName}.pdf`;
   document.body.append(link);
   link.click();
   link.remove();
@@ -918,6 +1075,7 @@ function downloadInvoiceFile() {
 
 function renderList() {
   const query = els.search.value.trim().toLowerCase();
+  const activeType = els.documentTypeFilter?.value || "FACTURE";
   const visibleInvoices = sortedInvoices(invoices.filter((invoice) => {
     if (!invoiceMatchesFilters(invoice)) return false;
     return [invoice.number, invoice.clientName, invoice.status, invoice.documentType]
@@ -929,7 +1087,7 @@ function renderList() {
   els.invoiceList.innerHTML = visibleInvoices.length
     ? ""
     : '<p class="empty-state invoice-table-empty">Pas de donnees</p>';
-  els.invoiceListTotal.textContent = `${visibleInvoices.length} ${visibleInvoices.length > 1 ? "FACTURES" : "FACTURE"}`;
+  els.invoiceListTotal.textContent = `${visibleInvoices.length} ${documentCountLabel(activeType, visibleInvoices.length)}`;
 
   visibleInvoices.forEach((invoice) => {
     const totals = calculate(invoice);
@@ -1540,6 +1698,7 @@ function renderSummary() {
 function renderPreview() {
   const invoice = selectedInvoice();
   const totals = calculate(invoice);
+  const deliveryNote = isDeliveryNote(invoice.documentType);
   const lineTaxRate = numberValue(invoice.taxRate) / 100;
   const companyAddress = linesHtml(invoice.companyAddress.split("\n"));
   const companyLegal = linesHtml([
@@ -1562,6 +1721,15 @@ function renderPreview() {
     .map((item) => {
       const lineSubtotal = numberValue(item.quantity) * numberValue(item.price);
       const lineTax = lineSubtotal * lineTaxRate;
+      if (deliveryNote) {
+        return `
+          <div class="zm-table-row delivery-row">
+            <strong>${escapeHtml(item.description || "Article livre")}</strong>
+            <strong class="num">${escapeHtml(new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(numberValue(item.quantity)))}</strong>
+            <strong>Livré</strong>
+          </div>
+        `;
+      }
       return `
         <div class="zm-table-row">
           <strong>${escapeHtml(item.description || "Ligne sans description")}</strong>
@@ -1589,7 +1757,7 @@ function renderPreview() {
 
       <section class="zm-meta">
         <div class="zm-billed">
-          <strong>FACTURÉ À</strong>
+          <strong>${deliveryNote ? "LIVRÉ À" : "FACTURÉ À"}</strong>
           <p>${clientDetails}</p>
         </div>
         <dl>
@@ -1597,12 +1765,19 @@ function renderPreview() {
           <dd>${escapeHtml(invoice.number)}</dd>
           <dt>Date:</dt>
           <dd>${escapeHtml(formatDate(invoice.date))}</dd>
-          <dt>Échéance:</dt>
-          <dd>${escapeHtml(formatDate(invoice.dueDate))}</dd>
+          ${deliveryNote ? "" : `
+            <dt>Échéance:</dt>
+            <dd>${escapeHtml(formatDate(invoice.dueDate))}</dd>
+          `}
           <dt>Date de livraison:</dt>
           <dd>${escapeHtml(formatDate(invoice.deliveryDate))}</dd>
-          <dt>Mode de paiement:</dt>
-          <dd>${escapeHtml(invoice.paymentMethod)}</dd>
+          ${deliveryNote ? `
+            <dt>Statut:</dt>
+            <dd>${escapeHtml(invoice.status)}</dd>
+          ` : `
+            <dt>Mode de paiement:</dt>
+            <dd>${escapeHtml(invoice.paymentMethod)}</dd>
+          `}
         </dl>
       </section>
 
@@ -1611,48 +1786,70 @@ function renderPreview() {
         ${invoice.workDetails ? `<p>${escapeHtml(invoice.workDetails)}</p>` : ""}
       </section>
 
-      <section class="zm-table">
+      <section class="zm-table${deliveryNote ? " delivery-note-table" : ""}">
         <div class="zm-table-head">
-          <span>DESCRIPTION</span>
-          <span>NOMBRE DE JOUR</span>
-          <span>PRIX (${escapeHtml(invoice.currency)})</span>
-          <span>TVA (${escapeHtml(invoice.currency)})</span>
-          <span>MONTANT (${escapeHtml(invoice.currency)})</span>
+          ${deliveryNote ? `
+            <span>ARTICLE / DESCRIPTION</span>
+            <span>QUANTITÉ LIVRÉE</span>
+            <span>OBSERVATION</span>
+          ` : `
+            <span>DESCRIPTION</span>
+            <span>NOMBRE DE JOUR</span>
+            <span>PRIX (${escapeHtml(invoice.currency)})</span>
+            <span>TVA (${escapeHtml(invoice.currency)})</span>
+            <span>MONTANT (${escapeHtml(invoice.currency)})</span>
+          `}
         </div>
-        ${lines || '<p class="empty-state">Ajoutez une prestation.</p>'}
+        ${lines || `<p class="empty-state">${deliveryNote ? "Ajoutez les articles livres." : "Ajoutez une prestation."}</p>`}
       </section>
 
-      <section class="zm-total-area">
-        <div class="zm-words">
-          <p><em>Arrêté à la somme ${escapeHtml(amountInWords(totals.total))}.</em></p>
-          <p><em>Condition de paiement : ${escapeHtml(invoice.paymentTerms)}</em></p>
-          ${invoice.notes ? `<p>${escapeHtml(invoice.notes)}</p>` : ""}
-        </div>
-        <div class="zm-totals">
-          <div><span>TOTAL H.T.:</span><strong>${amountText(totals.subtotal, invoice.currency)}</strong></div>
-          ${totals.discount ? `<div><span>REMISE:</span><strong>${amountText(totals.discount, invoice.currency)}</strong></div>` : ""}
-          ${totals.tax ? `<div><span>TVA:</span><strong>${amountText(totals.tax, invoice.currency)}</strong></div>` : ""}
-          <h4>MONTANT TOTAL (${escapeHtml(invoice.currency)})</h4>
-          <div class="payable"><span>TOTAL À PAYER(${escapeHtml(invoice.currency)})</span><strong>${amountText(totals.balance, invoice.currency)}</strong></div>
-        </div>
-      </section>
+      ${deliveryNote ? `
+        <section class="zm-delivery-confirmation">
+          <div>
+            <strong>Réception</strong>
+            <p>Les articles mentionnés ci-dessus ont été livrés au client.</p>
+            ${invoice.notes ? `<p>${escapeHtml(invoice.notes)}</p>` : ""}
+          </div>
+          <div>
+            <span>Nom et cachet du réceptionnaire</span>
+            <em>Signature client</em>
+          </div>
+        </section>
+      ` : `
+        <section class="zm-total-area">
+          <div class="zm-words">
+            <p><em>Arrêté à la somme ${escapeHtml(amountInWords(totals.total))}.</em></p>
+            <p><em>Condition de paiement : ${escapeHtml(invoice.paymentTerms)}</em></p>
+            ${invoice.notes ? `<p>${escapeHtml(invoice.notes)}</p>` : ""}
+          </div>
+          <div class="zm-totals">
+            <div><span>TOTAL H.T.:</span><strong>${amountText(totals.subtotal, invoice.currency)}</strong></div>
+            ${totals.discount ? `<div><span>REMISE:</span><strong>${amountText(totals.discount, invoice.currency)}</strong></div>` : ""}
+            ${totals.tax ? `<div><span>TVA:</span><strong>${amountText(totals.tax, invoice.currency)}</strong></div>` : ""}
+            <h4>MONTANT TOTAL (${escapeHtml(invoice.currency)})</h4>
+            <div class="payable"><span>TOTAL À PAYER(${escapeHtml(invoice.currency)})</span><strong>${amountText(totals.balance, invoice.currency)}</strong></div>
+          </div>
+        </section>
+      `}
 
       <section class="zm-signature">
         <strong>SIGNATURE:</strong>
         <img class="signature-image" src="${SIGNATURE_SRC}" alt="Signature ZM Trans Logistics">
       </section>
 
-      <footer class="zm-payment">
-        <h4>INFORMATIONS DE PAIEMENT:</h4>
-        <p>
-          <strong>Titulaire de compte:</strong> ${escapeHtml(invoice.bankHolder)}
-          <strong>Banque:</strong> ${escapeHtml(invoice.bankName)}
-          <strong>Routing Number:</strong> ${escapeHtml(invoice.routingNumber)}
-          <strong>N° de compte:</strong> ${escapeHtml(invoice.accountNumber)}
-          <strong>IBAN:</strong> ${escapeHtml(invoice.iban)}
-          <strong>BIC:</strong> ${escapeHtml(invoice.bic)}
-        </p>
-      </footer>
+      ${deliveryNote ? "" : `
+        <footer class="zm-payment">
+          <h4>INFORMATIONS DE PAIEMENT:</h4>
+          <p>
+            <strong>Titulaire de compte:</strong> ${escapeHtml(invoice.bankHolder)}
+            <strong>Banque:</strong> ${escapeHtml(invoice.bankName)}
+            <strong>Routing Number:</strong> ${escapeHtml(invoice.routingNumber)}
+            <strong>N° de compte:</strong> ${escapeHtml(invoice.accountNumber)}
+            <strong>IBAN:</strong> ${escapeHtml(invoice.iban)}
+            <strong>BIC:</strong> ${escapeHtml(invoice.bic)}
+          </p>
+        </footer>
+      `}
     </div>
   `;
 }
@@ -1664,6 +1861,7 @@ function render() {
   document.body.classList.toggle("invoice-list-mode", !isCreatingInvoice && currentView === "invoices");
   document.body.classList.toggle("overview-mode", !isCreatingInvoice && currentView === "overview");
   document.body.classList.toggle("clients-mode", !isCreatingInvoice && currentView === "clients");
+  document.body.classList.toggle("delivery-document-mode", isDeliveryNote(invoice.documentType));
   els.documentTypeLinks.forEach((link) => {
     link.classList.toggle("active", !isCreatingInvoice && currentView === "invoices" && link.dataset.documentFilter === els.documentTypeFilter?.value);
   });
@@ -1743,7 +1941,19 @@ els.newInvoiceBtn.addEventListener("click", () => {
     number: nextInvoiceNumber(),
     date: today(),
     dueDate: today(14),
-    deliveryDate: today()
+    deliveryDate: today(),
+    ...(isDeliveryNote(activeType)
+      ? {
+          subject: "BON DE LIVRAISON",
+          workDetails: "",
+          items: [{ description: "", quantity: 1, price: 0 }],
+          taxRate: 0,
+          discountRate: 0,
+          paid: 0,
+          paymentMethod: "",
+          paymentTerms: ""
+        }
+      : {})
   });
   invoices = [invoice, ...invoices];
   selectedId = invoice.id;
@@ -1777,7 +1987,20 @@ els.modalPrintBtn.addEventListener("click", () => {
   document.body.classList.add("modal-printing");
   window.print();
 });
-els.modalSaveBtn.addEventListener("click", downloadInvoiceFile);
+els.modalSaveBtn.addEventListener("click", async () => {
+  const label = els.modalSaveBtn.textContent;
+  els.modalSaveBtn.disabled = true;
+  els.modalSaveBtn.textContent = "Generation PDF...";
+  try {
+    await downloadInvoiceFile();
+  } catch (error) {
+    alert("Impossible de generer le PDF. Utilisez le bouton Imprimer puis choisissez Enregistrer en PDF.");
+    console.error(error);
+  } finally {
+    els.modalSaveBtn.disabled = false;
+    els.modalSaveBtn.textContent = label;
+  }
+});
 els.modalEditBtn.addEventListener("click", editSelectedInvoice);
 els.modalDeleteBtn.addEventListener("click", deleteSelectedInvoice);
 window.addEventListener("afterprint", () => {
@@ -1829,6 +2052,8 @@ els.logoutBtn.addEventListener("click", () => {
   renderAuthState();
 });
 
+els.themeToggleBtn?.addEventListener("click", toggleTheme);
+
 els.userForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!requireAdminAction()) return;
@@ -1860,6 +2085,7 @@ els.userForm.addEventListener("submit", async (event) => {
 
 els.cancelUserEditBtn.addEventListener("click", resetUserForm);
 
+applyTheme(getStoredTheme());
 resetUserForm();
 render();
 restoreSession();
