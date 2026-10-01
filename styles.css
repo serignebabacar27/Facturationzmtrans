@@ -1627,6 +1627,12 @@ body.welcome-active .welcome-spark.two {
   text-align: right;
 }
 
+.zm-table-row .quantity-cell,
+.delivery-note-table .zm-table-row .num {
+  color: #111;
+  text-align: center;
+}
+
 .delivery-note-table .zm-table-head,
 .delivery-note-table .zm-table-row {
   grid-template-columns: minmax(150px, 1.45fr) 130px minmax(120px, 0.85fr);

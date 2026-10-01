@@ -1755,7 +1755,7 @@ function renderPreview() {
       return `
         <div class="zm-table-row">
           <strong>${escapeHtml(item.description || "Ligne sans description")}</strong>
-          <strong>${escapeHtml(quantityValueText(item.quantity, quantityLabel))}</strong>
+          <strong class="quantity-cell">${escapeHtml(quantityValueText(item.quantity, quantityLabel))}</strong>
           <strong class="num">${amountText(item.price, invoice.currency)}</strong>
           <strong class="num">${amountText(lineTax, invoice.currency)}</strong>
           <strong class="num">${amountText(lineSubtotal + lineTax, invoice.currency)}</strong>
