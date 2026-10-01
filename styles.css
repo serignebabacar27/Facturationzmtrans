@@ -1297,6 +1297,11 @@ body.welcome-active .welcome-spark.two {
   gap: 10px;
 }
 
+.quantity-label-field {
+  max-width: 360px;
+  margin-bottom: 14px;
+}
+
 .item-row {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) 84px 110px 92px 38px;

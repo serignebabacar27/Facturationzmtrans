@@ -122,6 +122,7 @@ const els = {
   paymentTerms: document.querySelector("#paymentTermsInput"),
   pendingMetric: document.querySelector("#pendingMetric"),
   printBtn: document.querySelector("#printBtn"),
+  quantityLabel: document.querySelector("#quantityLabelInput"),
   lateMetric: document.querySelector("#lateMetric"),
   revenueMetric: document.querySelector("#revenueMetric"),
   revenueChart: document.querySelector("#revenueChart"),
@@ -224,6 +225,7 @@ function defaultInvoice(seed = {}) {
     clientTaxId: "",
     subject: "LOCATION BENNE SEMI REMORQUE A KEDOUGOU",
     workDetails: "La distance 40km/jr\nLes heures de travail c'est de 8h a 17h30",
+    quantityLabel: "Nombre de jour",
     items: [
       {
         description: "Benne semi remorque",
@@ -262,6 +264,7 @@ function normalizeInvoice(invoice) {
     clientTaxId: invoice.clientTaxId || "",
     subject: invoice.subject || "",
     workDetails: invoice.workDetails || "",
+    quantityLabel: invoice.quantityLabel || "Nombre de jour",
     paymentMethod: invoice.paymentMethod || "Espèces cheque ou virement",
     paymentTerms: invoice.paymentTerms || "Dès réception de la facture",
     bankHolder: bankValue(invoice, "bankHolder"),
@@ -584,6 +587,15 @@ function pluralizeDays(quantity) {
   return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(value)} ${value > 1 ? "jours" : "jour"}`;
 }
 
+function quantityLabelText(invoice = selectedInvoice()) {
+  return String(invoice?.quantityLabel || "Nombre de jour").trim() || "Nombre de jour";
+}
+
+function quantityValueText(quantity, label = "Nombre de jour") {
+  if (String(label || "").toLowerCase().includes("jour")) return pluralizeDays(quantity);
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(numberValue(quantity));
+}
+
 function amountInWords(amount) {
   const units = [
     "zero", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix",
@@ -664,6 +676,7 @@ function readForm() {
   invoice.paid = numberValue(els.paid.value);
   invoice.paymentMethod = els.paymentMethod.value.trim();
   invoice.paymentTerms = els.paymentTerms.value.trim();
+  invoice.quantityLabel = els.quantityLabel.value.trim() || "Nombre de jour";
   invoice.routingNumber = els.routingNumber.value.trim();
   invoice.status = els.status.value;
   invoice.subject = els.subject.value.trim();
@@ -676,6 +689,7 @@ function readForm() {
   }));
 
   saveInvoices();
+  updateItemQuantityLabels(invoice);
   renderSummary();
   renderPreview();
   renderList();
@@ -712,6 +726,7 @@ function fillForm(invoice) {
   els.paid.value = invoice.paid;
   els.paymentMethod.value = invoice.paymentMethod;
   els.paymentTerms.value = invoice.paymentTerms;
+  els.quantityLabel.value = quantityLabelText(invoice);
   els.routingNumber.value = invoice.routingNumber;
   els.status.value = invoice.status;
   els.subject.value = invoice.subject;
@@ -720,6 +735,7 @@ function fillForm(invoice) {
 
   els.itemsTable.innerHTML = "";
   invoice.items.forEach((item) => addItemRow(item));
+  updateItemQuantityLabels(invoice);
 }
 
 function addItemRow(item = { description: "", quantity: 1, price: 0 }) {
@@ -735,6 +751,14 @@ function addItemRow(item = { description: "", quantity: 1, price: 0 }) {
   row.addEventListener("input", readForm);
   els.itemsTable.append(row);
   updateRowTotal(row);
+}
+
+function updateItemQuantityLabels(invoice = selectedInvoice()) {
+  const label = quantityLabelText(invoice);
+  els.itemsTable.querySelectorAll(".item-row").forEach((row) => {
+    const labelText = row.querySelector('[data-field="quantity"]')?.closest("label")?.querySelector("span");
+    if (labelText) labelText.textContent = label;
+  });
 }
 
 function updateAllRowTotals() {
@@ -1696,6 +1720,7 @@ function renderPreview() {
   const invoice = selectedInvoice();
   const totals = calculate(invoice);
   const deliveryNote = isDeliveryNote(invoice.documentType);
+  const quantityLabel = quantityLabelText(invoice);
   const lineTaxRate = numberValue(invoice.taxRate) / 100;
   const companyAddress = linesHtml(invoice.companyAddress.split("\n"));
   const companyLegal = linesHtml([
@@ -1730,7 +1755,7 @@ function renderPreview() {
       return `
         <div class="zm-table-row">
           <strong>${escapeHtml(item.description || "Ligne sans description")}</strong>
-          <strong>${escapeHtml(pluralizeDays(item.quantity))}</strong>
+          <strong>${escapeHtml(quantityValueText(item.quantity, quantityLabel))}</strong>
           <strong class="num">${amountText(item.price, invoice.currency)}</strong>
           <strong class="num">${amountText(lineTax, invoice.currency)}</strong>
           <strong class="num">${amountText(lineSubtotal + lineTax, invoice.currency)}</strong>
@@ -1791,7 +1816,7 @@ function renderPreview() {
             <span>OBSERVATION</span>
           ` : `
             <span>DESCRIPTION</span>
-            <span>NOMBRE DE JOUR</span>
+            <span>${escapeHtml(quantityLabel).toUpperCase()}</span>
             <span>PRIX (${escapeHtml(invoice.currency)})</span>
             <span>TVA (${escapeHtml(invoice.currency)})</span>
             <span>MONTANT (${escapeHtml(invoice.currency)})</span>
