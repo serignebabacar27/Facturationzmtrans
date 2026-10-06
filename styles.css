@@ -2535,6 +2535,32 @@ input[readonly] {
   font-size: 40px;
 }
 
+.users-mode .document-browser,
+.users-mode .clients-page,
+.users-mode .editor-grid,
+.users-mode .dashboard,
+.users-mode .browse-actions {
+  display: none;
+}
+
+.users-mode .admin-panel {
+  display: grid;
+  margin-top: 10px;
+}
+
+.users-mode .page-head {
+  margin-top: 8px;
+  margin-bottom: 14px;
+}
+
+.users-mode .page-head .eyebrow {
+  display: none;
+}
+
+.users-mode .page-head h2 {
+  font-size: 40px;
+}
+
 .invoice-create-mode .workspace {
   width: 100%;
   max-width: 1780px;

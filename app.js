@@ -130,6 +130,7 @@ const els = {
   saveInvoiceBtn: document.querySelector("#saveInvoiceBtn"),
   saveClientBtn: document.querySelector("#saveClientBtn"),
   search: document.querySelector("#searchInput"),
+  settingsNavGroup: document.querySelector("#settingsNavGroup"),
   showClientFormBtn: document.querySelector("#showClientFormBtn"),
   sortBy: document.querySelector("#sortByInput"),
   sortDirection: document.querySelector("#sortDirectionInput"),
@@ -148,6 +149,7 @@ const els = {
   userHistoryBody: document.querySelector("#userHistoryBody"),
   userHistoryTitle: document.querySelector("#userHistoryTitle"),
   userHistoryTotal: document.querySelector("#userHistoryTotal"),
+  usersNavLink: document.querySelector("#usersNavLink"),
   usersList: document.querySelector("#usersList"),
   workDetails: document.querySelector("#workDetailsInput")
 };
@@ -860,6 +862,10 @@ function invoiceMatchesFilters(invoice) {
 }
 
 function showView(view) {
+  if (view === "users" && currentUser?.role !== "admin") {
+    alert("Seul l'administrateur peut gerer les utilisateurs.");
+    return;
+  }
   currentView = view;
   isCreatingInvoice = false;
   closeInvoiceModal();
@@ -867,7 +873,13 @@ function showView(view) {
   if (view === "overview") {
     triggerWelcomeAnimation();
   }
-  const target = view === "overview" ? ".dashboard" : view === "clients" ? ".clients-page" : ".document-browser";
+  const target = view === "overview"
+    ? ".dashboard"
+    : view === "clients"
+      ? ".clients-page"
+      : view === "users"
+        ? ".admin-panel"
+        : ".document-browser";
   document.querySelector(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -1249,6 +1261,11 @@ function renderAuthState() {
     ? `${currentUser.name} (${currentUser.role === "admin" ? "Admin" : "Utilisateur"})`
     : "Non connecte";
   els.adminPanel.hidden = !isAdmin;
+  els.settingsNavGroup.hidden = !isAdmin;
+  els.usersNavLink.hidden = !isAdmin;
+  if (!isAdmin && currentView === "users") {
+    currentView = "overview";
+  }
   if (!isAdmin) {
     users = [];
     els.usersList.innerHTML = "";
@@ -1706,6 +1723,9 @@ function renderSummary() {
   } else if (currentView === "clients") {
     els.pageTitle.textContent = "Clients";
     els.creationCrumb.hidden = true;
+  } else if (currentView === "users") {
+    els.pageTitle.textContent = "Utilisateurs";
+    els.creationCrumb.hidden = true;
   } else {
     els.pageTitle.textContent = `${invoice.documentType} ${invoice.number} - ${invoice.clientName || "Client"}`;
     els.creationCrumb.hidden = true;
@@ -1883,12 +1903,14 @@ function render() {
   document.body.classList.toggle("invoice-list-mode", !isCreatingInvoice && currentView === "invoices");
   document.body.classList.toggle("overview-mode", !isCreatingInvoice && currentView === "overview");
   document.body.classList.toggle("clients-mode", !isCreatingInvoice && currentView === "clients");
+  document.body.classList.toggle("users-mode", !isCreatingInvoice && currentView === "users");
   document.body.classList.toggle("delivery-document-mode", isDeliveryNote(invoice.documentType));
   els.documentTypeLinks.forEach((link) => {
     link.classList.toggle("active", !isCreatingInvoice && currentView === "invoices" && link.dataset.documentFilter === els.documentTypeFilter?.value);
   });
   els.overviewNavLink.classList.toggle("active", !isCreatingInvoice && currentView === "overview");
   els.clientsNavLink.classList.toggle("active", !isCreatingInvoice && currentView === "clients");
+  els.usersNavLink.classList.toggle("active", !isCreatingInvoice && currentView === "users");
   renderClientOptions();
   fillForm(invoice);
   renderList();
@@ -1929,6 +1951,10 @@ els.overviewNavLink.addEventListener("click", (event) => {
 els.clientsNavLink.addEventListener("click", (event) => {
   event.preventDefault();
   showView("clients");
+});
+els.usersNavLink.addEventListener("click", (event) => {
+  event.preventDefault();
+  showView("users");
 });
 els.clientSearch.addEventListener("input", renderClients);
 els.showClientFormBtn.addEventListener("click", () => {
